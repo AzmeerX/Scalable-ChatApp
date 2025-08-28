@@ -25,8 +25,14 @@ const loginUser = asyncHandler(async (req, res) => {
         throw new ApiError(401, "Invalid Password");
     }
 
+    const createdUser = await User.findById(user._id).select("-password -refreshToken");
+
+    if(!createdUser){
+        throw new ApiError(500, "Something went wrong");
+    }
+
     return res.json(
-        new ApiResponse(200, user, "Login Successful")
+        new ApiResponse(200, createdUser, "Login Successful")
     );
 });
 
@@ -43,13 +49,15 @@ const signUpUser = asyncHandler(async(req, res) => {
     });
 
     if(userExists){
-        throw new ApiError(401, "Username or Email Already Exists");
+        throw new ApiError(409, "Username or Email Already Exists");
     }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = await User.create({
         username,
         email,
-        password,
+        password: hashedPassword,
         profile: profile ? profile : "",
         description
     });
@@ -57,9 +65,15 @@ const signUpUser = asyncHandler(async(req, res) => {
     if(!user){
         throw new ApiError(500, "Something went wrong");
     }
+    
+    const createdUser = await User.findById(user._id).select("-password -refreshToken") ;
+    
+    if(!createdUser){
+        throw new ApiError(500, "Something went wrong");
+    }
 
     return res.json(
-        new ApiResponse(200, user, "Sign up Successful")
+        new ApiResponse(200, createdUser, "Sign up Successful")
     );
 });
 
