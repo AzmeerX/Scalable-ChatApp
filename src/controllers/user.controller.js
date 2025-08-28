@@ -31,9 +31,13 @@ const loginUser = asyncHandler(async (req, res) => {
         throw new ApiError(500, "Something went wrong");
     }
 
-    return res.json(
-        new ApiResponse(200, createdUser, "Login Successful")
-    );
+    const accessToken = createdUser.generateAccessToken();
+    const refreshToken = createdUser.generateRefreshToken();
+
+    return res.status(200)
+        .cookie("accessToken", accessToken, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000 })
+        .cookie("refreshToken", refreshToken, { httpOnly: true, maxAge: 10 * 24 * 60 * 60 * 1000 })
+        .json(new ApiResponse(200, { user: createdUser, accessToken, refreshToken }, "Login Successful!"));
 });
 
 
@@ -72,7 +76,7 @@ const signUpUser = asyncHandler(async(req, res) => {
         throw new ApiError(500, "Something went wrong");
     }
 
-    return res.json(
+    return res.status(
         new ApiResponse(200, createdUser, "Sign up Successful")
     );
 });
