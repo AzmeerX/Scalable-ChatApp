@@ -1,8 +1,8 @@
+import bcrypt from "bcrypt";
 import { asyncHandler } from "../utils/AsyncHandler.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/user.model.js";
-import bcrypt from "bcrypt";
 
 const loginUser = asyncHandler(async (req, res) => {
     const  { username, email, password } = req.body;
@@ -11,11 +11,11 @@ const loginUser = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Please fill the required fields");
     }
 
-    const user = await User.find({
+    const user = await User.findOne({
         $or: [{ email }, { username }]
     });
 
-    if(user === null){
+    if(!user){
         throw new ApiError(409, "User Not Found");
     }
 
