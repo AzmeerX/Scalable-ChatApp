@@ -41,7 +41,15 @@ const loginUser = asyncHandler(async (req, res) => {
 });
 
 
-const signUpUser = asyncHandler(async(req, res) => {
+const logoutUser = asyncHandler(async (req, res) => {
+    return res.status(200)
+        .cookie("accessToken", "", { httpOnly: true, expires: new Date(0) })
+        .cookie("refreshToken", "", { httpOnly: true, expires: new Date(0) })
+        .json(new ApiResponse(200, null, "Logged Out"));
+});
+
+
+const signUpUser = asyncHandler(async (req, res) => {
     const { username, email, password, profile, description } = req.body;
 
     if(!username || !email || !password){
