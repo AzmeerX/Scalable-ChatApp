@@ -1,4 +1,5 @@
 import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 import { asyncHandler } from "../utils/AsyncHandler.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
@@ -89,4 +90,34 @@ const signUpUser = asyncHandler(async (req, res) => {
     );
 });
 
-export { loginUser, signUpUser, logoutUser };
+
+const refreshAccessToken = asyncHandler(async (req, res) => {
+    const refresh = req.cookies?.refreshToken || req.body.refreshToken;
+
+    if(!refresh){
+        throw new ApiError(401, "Refresh Token Missing");
+    }
+
+    try {
+        const decoded = jwt.verify(refresh, process.env.JWT_REFRESH_SECRET);
+
+        const user = await User.findById(decoded._id);
+
+        if(!user){
+            throw new ApiError(401, "User not found");
+        }
+
+        const newAccessToken = user.generateAccessToken();
+        const newRefreshToken = user.generateRefreshToken();
+
+        return res.status(200)
+            .cookie("accessToken", newAccessToken, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000 })
+            .cookie("refreshToken", newRefreshToken, { httpOnly: true, maxAge: 10 * 24 * 60 * 60 * 1000 })
+            .json(new ApiResponse(200, { accessToken: newAccessToken, refreshToken: newRefreshToken }));
+
+    } catch (error) {
+        throw new ApiError(401, "Invalid refresh token");
+    }
+});
+
+export { loginUser, signUpUser, logoutUser, refreshAccessToken };
