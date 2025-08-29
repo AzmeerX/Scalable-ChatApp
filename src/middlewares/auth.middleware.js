@@ -27,6 +27,6 @@ export const verifyToken = asyncHandler(async (req, res, next) => {
         next();
 
     } catch (error) {
-        throw new ApiError(400, error);
+        throw new ApiError(401, "Invalid or expired token");
     }
 });

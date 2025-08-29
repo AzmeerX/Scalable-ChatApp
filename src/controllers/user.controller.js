@@ -89,4 +89,4 @@ const signUpUser = asyncHandler(async (req, res) => {
     );
 });
 
-export { loginUser, signUpUser };
+export { loginUser, signUpUser, logoutUser };
