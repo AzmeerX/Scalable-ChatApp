@@ -13,4 +13,8 @@ import userRouter from "./routes/user.route.js";
 
 app.use("/api/v1/users", userRouter);  
 
+import conversationRouter from "./routes/conversation.route.js";
+
+app.use("/api/v1/conversations", conversationRouter);
+
 export { app };
