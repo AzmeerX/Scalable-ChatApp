@@ -29,4 +29,26 @@ const createOrFetchConversation = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, conversation, "Conversation Fetched"));
 });
 
-export { createOrFetchConversation };
+
+const findAllConversations = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
+
+    if(!userId){
+        throw new ApiError(400, "User ID required");
+    }
+
+    const conversations = await Conversation.find({
+        $or: [
+            { user1: userId}, { user2: userId }
+        ]
+    }).sort({ updatedAt: -1 });
+
+    if(!conversations.length){
+        throw new ApiError(400, "Start a new conversation to chat");
+    }
+
+    return res.status(200)
+        .json(new ApiResponse(200, conversations, "All chats fetched"));
+});
+
+export { createOrFetchConversation, findAllConversations };
