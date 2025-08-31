@@ -9,12 +9,17 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-import userRouter from "./routes/user.route.js";
 
+import userRouter from "./routes/user.route.js";
 app.use("/api/v1/users", userRouter);  
 
-import conversationRouter from "./routes/conversation.route.js";
 
+import conversationRouter from "./routes/conversation.route.js";
 app.use("/api/v1/conversations", conversationRouter);
+
+
+import messageRouter from "./routes/message.route.js";
+app.use("/api/v1/messages", messageRouter);
+
 
 export { app };
