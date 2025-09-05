@@ -28,4 +28,28 @@ const sendMessage = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, message, "Message Sent"));
 });
 
-export { sendMessage };
+
+const getMessages = asyncHandler(async (req, res) => {
+    const { conversationId } = req.params;
+    const { page = 1, limit = 20 } = req.query;
+
+    if(!conversationId){
+        throw new ApiError(400, "Conversation ID required");
+    }
+
+    const messages = await Message.find({ conversationId })
+            .populate("sender", "username email")
+            .sort({ createdAt: -1 })
+            .skip((page - 1) * limit)
+            .limit(parseInt(limit))
+        
+    if(!messages){
+        throw new ApiError(500, "Something went wrong");
+    }
+
+    return res.status(200)
+        .json(new ApiResponse(200, messages, "Messages Fetched"));
+});
+
+
+export { sendMessage, getMessages };
