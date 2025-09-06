@@ -53,4 +53,30 @@ const getMessages = asyncHandler(async (req, res) => {
 });
 
 
-export { sendMessage, getMessages };
+const updateMessageStatus = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if(status !== "sent" || status !== "delivered" || status !== "seen"){
+        throw new ApiError(400, "Invalid Status");
+    }
+
+    const message = await Message.findById(id);
+
+    if(!message){
+        throw new ApiError(404, "Message Not Found");
+    }
+
+    if(message.sender.toString() === req.user._id.toString()){
+        throw new ApiError(403, "Sender can not update status");
+    }
+
+    message.status = status;
+    await message.save();
+
+    return res.status(200)
+        .json(new ApiResponse(200, message, "Status Updated"));
+});
+
+
+export { sendMessage, getMessages, updateMessageStatus };

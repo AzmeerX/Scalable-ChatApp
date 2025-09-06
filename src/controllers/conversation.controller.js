@@ -16,7 +16,9 @@ const createOrFetchConversation = asyncHandler(async (req, res) => {
             { user1: userId, user2: secondUserId },
             { user1: secondUserId, user2: userId }
         ]
-    });
+    })
+        .populate("lastMessage", "sender text createdAt")
+        .populate("user1 user2", "username email")
 
     if(!conversation){
         conversation = await Conversation.create({
@@ -24,6 +26,11 @@ const createOrFetchConversation = asyncHandler(async (req, res) => {
             user2: secondUserId
         });
     }
+
+    conversation = await Conversation.findById(conversation._id)
+        .populate("lastMessage", "sender text createdAt")
+        .populate("user1 user2", "username email")
+        
 
     return res.status(200)
         .json(new ApiResponse(200, conversation, "Conversation Fetched"));
@@ -41,7 +48,10 @@ const findAllConversations = asyncHandler(async (req, res) => {
         $or: [
             { user1: userId}, { user2: userId }
         ]
-    }).sort({ updatedAt: -1 });
+    })
+        .populate("lastMessage", "sender text createdAt")
+        .populate("user1 user2", "username email")
+        .sort({ updatedAt: -1 });
 
     if(!conversations.length){
         throw new ApiError(400, "Start a new conversation to chat");
