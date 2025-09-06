@@ -3,6 +3,7 @@ import { Conversation } from "../models/conversation.model.js";
 import { asyncHandler } from "../utils/AsyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import mongoose from "mongoose";
 
 const sendMessage = asyncHandler(async (req, res) => {
     const { conversationId, text, media } = req.body;
@@ -18,7 +19,7 @@ const sendMessage = asyncHandler(async (req, res) => {
     }
 
     const message = await Message.create({
-        conversation: conversationId,
+        conversationId,
         sender: senderId,
         text,
         media
@@ -37,7 +38,7 @@ const getMessages = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Conversation ID required");
     }
 
-    const messages = await Message.find({ conversationId })
+    const messages = await Message.find({ conversationId: new mongoose.Types.ObjectId(conversationId) })
             .populate("sender", "username email")
             .sort({ createdAt: -1 })
             .skip((page - 1) * limit)
