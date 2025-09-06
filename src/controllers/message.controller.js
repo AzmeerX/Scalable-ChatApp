@@ -79,4 +79,21 @@ const updateMessageStatus = asyncHandler(async (req, res) => {
 });
 
 
-export { sendMessage, getMessages, updateMessageStatus };
+const markAllSeen = asyncHandler(async (req, res) => {
+    const { conversationId } = req.params;
+
+    const result = await Message.updateMany(
+        {
+            conversationId,
+            status: { $ne: "seen" }
+        },
+        {
+            $set: { status: "seen" }
+        }
+    );
+
+    return res.status(200)
+        .json(new ApiResponse(200, result, "All Messages Updated"));
+});
+
+export { sendMessage, getMessages, updateMessageStatus, markAllSeen };
