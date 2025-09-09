@@ -1,9 +1,13 @@
 import dotenv from 'dotenv';
 import { connectDB } from './DB/db.js';
+import http from 'http';
+import { initSocket } from './sockets/socketManager.js';
+import { app } from './app.js';      
 
 dotenv.config();
 
-import { app } from './app.js';      
+const server = http.createServer(app);
+initSocket(server); 
 
 const PORT = process.env.PORT;
 
@@ -13,7 +17,7 @@ app.get("/", (req, res) => {
 
 connectDB()
     .then(() => {
-        app.listen(PORT, () => {
+        server.listen(PORT, () => {
             console.log(`Server running on ${PORT}`);
         });
     })
