@@ -4,6 +4,7 @@ import api from "../api/axiosInstance.js";
 export default function Sidebar({ onSelectConversation }) {
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     const fetchConversations = async () => {
@@ -19,6 +20,29 @@ export default function Sidebar({ onSelectConversation }) {
 
     fetchConversations();
   }, []);
+
+  const handleSearch = async () => {
+    if (!search.trim()) return;
+
+    try {
+      const { data } = await api.post("/api/v1/conversations/create-or-find", {
+        username: search.trim(),
+      });
+
+      const conversation = data.data; 
+
+      if (!conversations.find((c) => c._id === conversation._id)) {
+        setConversations((prev) => [conversation, ...prev]);
+      }
+
+      onSelectConversation(conversation);
+      setSearch("");
+    } catch (err) {
+      console.error(err);
+      alert("User not found or cannot create conversation");
+    }
+  };
+
 
   if (loading) {
     return (
