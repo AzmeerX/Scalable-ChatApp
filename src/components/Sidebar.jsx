@@ -29,7 +29,12 @@ export default function Sidebar({ onSelectConversation }) {
         username: search.trim(),
       });
 
-      const conversation = data.data; 
+      const conversation = {
+        ...data.data,
+        participants: data.data.participants
+          ? data.data.participants
+          : [data.data.user1, data.data.user2], 
+      };
 
       if (!conversations.find((c) => c._id === conversation._id)) {
         setConversations((prev) => [conversation, ...prev]);
@@ -55,6 +60,16 @@ export default function Sidebar({ onSelectConversation }) {
   return (
     <div className="w-1/4 bg-white border-r border-gray-200 p-4">
       <h2 className="text-lg font-semibold mb-4">Chats</h2>
+
+      <input
+        type="text"
+        placeholder="Search username..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+        className="p-2 rounded bg-gray-100 w-full mb-2 focus:outline-none"
+      />
+
       <div className="space-y-2">
         {conversations.length === 0 && (
           <div className="text-gray-500">No conversations yet.</div>

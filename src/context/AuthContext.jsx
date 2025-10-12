@@ -12,7 +12,7 @@ export default function AuthProvider({ children }) {
         (async () => {
             try {
                 const { data } = await api.get("/api/v1/users/me");
-                setUser(data.user);
+                setUser(data.data.user);
             } catch {
                 setUser(null);
             } finally {
@@ -22,9 +22,8 @@ export default function AuthProvider({ children }) {
     }, []);
 
     const login = async (credentials) => {
-        await api.post("/api/v1/users/login", credentials);
-        const { data } = await api.get("/api/v1/users/me");
-        setUser(data.user);
+        const { data } = await api.post("/api/v1/users/login", credentials);
+        setUser(data.data.user);
     }
 
     const logout = async () => {
