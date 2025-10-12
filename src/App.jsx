@@ -1,10 +1,14 @@
 import AuthProvider from "./context/AuthContext.jsx";
-import AppRouter from "./router.jsx";
+import { SocketProvider } from "./context/SocketContext.jsx"; 
+import AppRouter from "./router.jsx"; 
+import { RouterProvider } from "react-router-dom";
 
 export default function App() {
   return (
     <AuthProvider>
-      <AppRouter />
+      <SocketProvider>
+        <AppRouter />
+      </SocketProvider>
     </AuthProvider>
   );
 }

@@ -1,7 +1,8 @@
-import { createContext, useEffect, useState } from "react";
+import { createContext, useEffect, useState, useContext } from "react";
 import api from "../api/axiosInstance.js";
 
 export const AuthContext = createContext();
+export const useAuth = () => useContext(AuthContext);
 
 export default function AuthProvider({ children }) {
     const [user, setUser] = useState(null);

@@ -2,7 +2,7 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
-import Chat from "./pages/Chat.jsx";
+import ChatPage from "./pages/Chat.jsx";
 
 const router = createBrowserRouter([
   {
@@ -18,9 +18,17 @@ const router = createBrowserRouter([
     children: [
       {
         path: "/",
-        element: <Chat />,
+        element: <ChatPage />,
       },
     ],
+  },
+  {
+    path: "/chats",
+    element: (
+      <ProtectedRoute>
+        <ChatPage />
+      </ProtectedRoute>
+    ),
   },
 ]);
 
