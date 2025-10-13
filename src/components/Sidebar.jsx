@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
+import { useAuth } from "../context/AuthContext.jsx";
 import api from "../api/axiosInstance.js";
 
-export default function Sidebar({ onSelectConversation }) {
+export default function Sidebar({ onSelectConversation, selectedConversation }) {
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const { user: currentUser } = useAuth();
 
   useEffect(() => {
     const fetchConversations = async () => {
@@ -17,7 +19,6 @@ export default function Sidebar({ onSelectConversation }) {
         setLoading(false);
       }
     };
-
     fetchConversations();
   }, []);
 
@@ -33,7 +34,7 @@ export default function Sidebar({ onSelectConversation }) {
         ...data.data,
         participants: data.data.participants
           ? data.data.participants
-          : [data.data.user1, data.data.user2], 
+          : [data.data.user1, data.data.user2],
       };
 
       if (!conversations.find((c) => c._id === conversation._id)) {
@@ -47,7 +48,6 @@ export default function Sidebar({ onSelectConversation }) {
       alert("User not found or cannot create conversation");
     }
   };
-
 
   if (loading) {
     return (
@@ -74,15 +74,25 @@ export default function Sidebar({ onSelectConversation }) {
         {conversations.length === 0 && (
           <div className="text-gray-500">No conversations yet.</div>
         )}
-        {conversations.map((conv) => (
-          <div
-            key={conv._id}
-            className="p-3 rounded-lg bg-gray-50 hover:bg-gray-100 cursor-pointer"
-            onClick={() => onSelectConversation(conv)}
-          >
-            {conv.name || conv.participants?.map(p => p.name).join(", ")}
-          </div>
-        ))}
+
+        {conversations.map((conv) => {
+          const isActive = selectedConversation?._id?.toString() === conv._id?.toString();
+          const otherUser = conv.participants?.filter(
+            (p) => p._id !== currentUser._id
+          )[0];
+
+          return (
+            <div
+              key={conv._id}
+              onClick={() => onSelectConversation(conv)}
+              className={`p-3 rounded-lg cursor-pointer transition-all 
+                ${isActive ? "bg-blue-100 font-medium" : "bg-gray-50 hover:bg-gray-100"}
+              `}
+            >
+              {otherUser?.username || "Unknown User"}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

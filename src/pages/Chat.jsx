@@ -7,7 +7,7 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-screen bg-gray-100">
-      <Sidebar onSelectConversation={setSelectedConversation} />
+      <Sidebar onSelectConversation={setSelectedConversation} selectedConversation={selectedConversation} />
       <ChatArea conversation={selectedConversation} />
     </div>
   );
