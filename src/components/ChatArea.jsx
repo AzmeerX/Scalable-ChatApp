@@ -8,7 +8,7 @@ export default function ChatArea({ conversation }) {
     const [messages, setMessages] = useState([]);
     const [loading, setLoading] = useState(false);
     const [input, setInput] = useState("");
-    const socket = useSocket();
+    const { socket } = useSocket();
     const scrollRef = useRef();
 
     useEffect(() => {
@@ -35,20 +35,38 @@ export default function ChatArea({ conversation }) {
         }
     };
 
+    useEffect(() => {
+        if (socket && conversation?._id) {
+            socket.emit("join_conversation", [conversation._id]);
+        }
+    }, [socket, conversation?._id]);
+
+    useEffect(() => {
+        if (!socket) return;
+
+        const handleNewMessage = (newMsg) => {
+            if (newMsg.conversationId === conversation?._id) {
+                setMessages((prev) => [...prev, newMsg]);
+                scrollToBottom();
+            }
+        };
+
+        socket.on("new_message", handleNewMessage);
+
+        return () => socket.off("new_message", handleNewMessage);
+    }, [socket, conversation?._id]);
+
+    useEffect(() => {
+        scrollToBottom();
+    }, [messages]);
+
     const handleSend = async () => {
         if (!input.trim() || !conversation) return;
-        const msg = { text: input };
-        setMessages((prev) => [...prev, { ...msg, temp: true }]);
+
+        const text = input.trim();
         setInput("");
 
-        try {
-            socket?.emit("private_message", { conversationId: conversation._id, text: msg.text }, (savedMsg) => {
-                setMessages((prev) => prev.map((m) => (m.temp ? savedMsg : m)));
-                scrollToBottom();
-            });
-        } catch (err) {
-            console.error(err);
-        }
+        socket?.emit("send_message", { conversationId: conversation._id, text });
     };
 
     if (!conversation) {
@@ -71,7 +89,7 @@ export default function ChatArea({ conversation }) {
             </div>
             <div
                 ref={scrollRef}
-                className="flex-1 p-4 overflow-y-auto space-y-2 bg-gray-50"
+                className="flex-1 p-4 overflow-y-auto flex flex-col space-y-2 bg-gray-50"
             >
                 {loading ? (
                     <div className="text-gray-400">Loading messages...</div>
@@ -79,10 +97,15 @@ export default function ChatArea({ conversation }) {
                     messages.map((msg, i) => (
                         <div
                             key={msg._id || i}
-                            className={`p-2 rounded-lg ${msg.sender === "me" ? "bg-blue-500 text-white self-end" : "bg-white"
+                            className={`relative px-4 py-2 rounded-2xl text-mg max-w-lg break-words ${msg.sender?._id === currentUser._id
+                                ? "bg-blue-500 text-white self-end"
+                                : "bg-gray-300 text-black self-start"
                                 }`}
                         >
-                            {msg.text}
+                            <div className="pr-12">{msg.text}</div>
+                            <span className="absolute bottom-1 right-3 text-[10px] opacity-70">
+                                {msg.createdAt && new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                            </span>
                         </div>
                     ))
                 )}

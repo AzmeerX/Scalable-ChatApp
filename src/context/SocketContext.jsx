@@ -8,6 +8,7 @@ export const SocketProvider = ({ children }) => {
   const { user } = useAuth();
   const socketRef = useRef(null);
   const [socketReady, setSocketReady] = useState(false);
+  const [messages, setMessages] = useState([]); 
 
   useEffect(() => {
     if (!user) return;
@@ -44,8 +45,8 @@ export const SocketProvider = ({ children }) => {
     if (!socketRef.current) return;
 
     const handleNewMessage = (msg) => {
-      console.log("📩 New message received:", msg);
-      // TODO: update UI/store, e.g., via context, Redux, or passing callbacks
+      console.log("New message received:", msg);
+      setMessages((prev) => [...prev, msg]);
     };
 
     socketRef.current.on("new_message", handleNewMessage);
@@ -55,8 +56,19 @@ export const SocketProvider = ({ children }) => {
     };
   }, [socketReady]);
 
+  const sendMessage = (conversationId, text, media = null) => {
+    if (!socketRef.current) return;
+    socketRef.current.emit("send_message", { conversationId, text, media });
+  };
+
   return (
-    <SocketContext.Provider value={socketRef.current}>
+    <SocketContext.Provider
+      value={{
+        socket: socketRef.current,
+        messages,
+        sendMessage,
+      }}
+    >
       {children}
     </SocketContext.Provider>
   );
