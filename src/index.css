@@ -1,1 +1,16 @@
 @import "tailwindcss";
+
+@keyframes bounceDelay {
+  0%, 80%, 100% { transform: scale(0); }
+  40% { transform: scale(1); }
+}
+
+.animate-bounceDelay1 {
+  animation: bounceDelay 1.4s infinite ease-in-out 0s;
+}
+.animate-bounceDelay2 {
+  animation: bounceDelay 1.4s infinite ease-in-out 0.2s;
+}
+.animate-bounceDelay3 {
+  animation: bounceDelay 1.4s infinite ease-in-out 0.4s;
+}
