@@ -8,7 +8,7 @@ export default function Sidebar({ onSelectConversation, selectedConversation }) 
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const { user: currentUser } = useAuth();
-  const { socket } = useSocket();
+  const { socket, onlineUserIds } = useSocket();
 
   useEffect(() => {
     const fetchConversations = async () => {
@@ -98,6 +98,7 @@ export default function Sidebar({ onSelectConversation, selectedConversation }) 
           const otherUser = conv.participants?.filter(
             (p) => p._id !== currentUser._id
           )[0];
+          const isOtherOnline = otherUser?._id && onlineUserIds?.includes(otherUser._id);
 
           return (
             <div
@@ -107,8 +108,14 @@ export default function Sidebar({ onSelectConversation, selectedConversation }) 
                 ${isActive ? "bg-blue-100 font-medium" : "bg-gray-50 hover:bg-gray-100"}
               `}
             >
-              <div className="font-semibold">
+              <div className="font-semibold flex items-center gap-2">
                 {otherUser?.username || "Unknown User"}
+                <span
+                  className={`inline-block w-2.5 h-2.5 rounded-full ${
+                    isOtherOnline ? "bg-green-500" : "bg-gray-300"
+                  }`}
+                  title={isOtherOnline ? "Online" : "Offline"}
+                />
               </div>
 
               {conv.lastMessage && (
