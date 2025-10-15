@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
 import api from "../api/axiosInstance.js";
+import { useSocket } from "../context/SocketContext.jsx"; 
 
 export default function Sidebar({ onSelectConversation, selectedConversation }) {
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const { user: currentUser } = useAuth();
+  const { socket } = useSocket();
 
   useEffect(() => {
     const fetchConversations = async () => {
@@ -21,6 +23,22 @@ export default function Sidebar({ onSelectConversation, selectedConversation }) 
     };
     fetchConversations();
   }, []);
+
+  useEffect(() => {
+    if (!socket) return;
+    socket.on("new_message", (message) => {
+      setConversations((prev) => {
+        return prev.map((conv) => {
+          if (conv._id === message.conversationId) {
+            return { ...conv, lastMessage: message };
+          }
+          return conv;
+        });
+      });
+    });
+
+    return () => socket.off("new_message");
+  }, [socket]);
 
   const handleSearch = async () => {
     if (!search.trim()) return;
@@ -89,7 +107,30 @@ export default function Sidebar({ onSelectConversation, selectedConversation }) 
                 ${isActive ? "bg-blue-100 font-medium" : "bg-gray-50 hover:bg-gray-100"}
               `}
             >
-              {otherUser?.username || "Unknown User"}
+              <div className="font-semibold">
+                {otherUser?.username || "Unknown User"}
+              </div>
+
+              {conv.lastMessage && (
+                <div className="flex justify-between text-gray-500 text-sm mt-1">
+                  <span className="truncate">
+                    <span className="font-semibold">
+                      {conv.lastMessage.sender?.username === currentUser.username
+                        ? "You"
+                        : conv.lastMessage.sender?.username}
+                      :{" "}
+                    </span>
+                    {conv.lastMessage.text}
+                  </span>
+
+                  <span className="ml-2 text-xs text-gray-400 flex-shrink-0">
+                    {new Date(conv.lastMessage.createdAt).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                </div>
+              )}
             </div>
           );
         })}

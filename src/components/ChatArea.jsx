@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import api from "../api/axiosInstance";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useSocket } from "../context/SocketContext";
+import formatDay from "../helpers/formatDate.js";
 
 export default function ChatArea({ conversation }) {
     const { user: currentUser } = useAuth();
@@ -9,10 +10,13 @@ export default function ChatArea({ conversation }) {
     const [loading, setLoading] = useState(false);
     const [input, setInput] = useState("");
     const [typingUsers, setTypingUsers] = useState([]);
+
     const { socket } = useSocket();
     const scrollRef = useRef();
     const typingTimeout = useRef(null);
     const TYPING_TIMEOUT = 2000;
+
+    let lastMessageDay = null;
 
     useEffect(() => {
         if (!conversation?._id) return;
@@ -49,11 +53,12 @@ export default function ChatArea({ conversation }) {
 
         const handleTyping = ({ conversationId, userId, isTyping }) => {
             if (conversationId !== conversation._id || userId === currentUser._id) return;
-            setTypingUsers((prev) => {
+
+            setTypingUsers(prev => {
                 if (isTyping) {
-                    return prev.includes(userId.toString()) ? prev : [...prev, userId.toString()];
+                    return prev.includes(userId) ? prev : [...prev, userId];
                 } else {
-                    return prev.filter((id) => id !== userId.toString());
+                    return prev.filter(id => id !== userId);
                 }
             });
         };
@@ -77,6 +82,32 @@ export default function ChatArea({ conversation }) {
     }, [socket, conversation?._id]);
 
     useEffect(() => {
+        if (!socket || !conversation) return;
+
+        messages.forEach((msg) => {
+            if (msg.sender._id !== currentUser._id && msg.status === "sent") {
+                socket.emit("message_delivered", { messageId: msg._id });
+            }
+        });
+    }, [messages, socket, conversation]);
+
+    useEffect(() => {
+        if (!socket) return;
+
+        const handleStatusUpdate = ({ messageId, status }) => {
+            setMessages((prev) =>
+                prev.map((msg) =>
+                    msg._id === messageId ? { ...msg, status } : msg
+                )
+            );
+        };
+
+        socket.on("message_status", handleStatusUpdate);
+
+        return () => socket.off("message_status", handleStatusUpdate);
+    }, [socket]);
+
+    useEffect(() => {
         scrollToBottom();
     }, [messages]);
 
@@ -97,6 +128,21 @@ export default function ChatArea({ conversation }) {
         );
     }
 
+    const handleInputChange = (e) => {
+        setInput(e.target.value);
+        if (!socket || !conversation?._id) return;
+
+        if (!typingTimeout.current) {
+            socket.emit("typing", { conversationId: conversation._id, isTyping: true });
+        }
+
+        clearTimeout(typingTimeout.current);
+        typingTimeout.current = setTimeout(() => {
+            socket.emit("typing", { conversationId: conversation._id, isTyping: false });
+            typingTimeout.current = null;
+        }, TYPING_TIMEOUT);
+    };
+
     return (
         <div className="flex-1 flex flex-col">
             <div className="p-4 border-b border-gray-200 bg-white flex items-center justify-between">
@@ -107,8 +153,8 @@ export default function ChatArea({ conversation }) {
                         ?.join(", ") || "Unknown User"}
 
                     {typingUsers.length > 0 && (
-                        <span className="flex ml-45 items-center gap-1 text-sm text-gray-500 italic">
-                            <span className="flex space-x-1">
+                        <span className="flex items-center gap-1 text-sm text-gray-500 italic">
+                            <span className="flex ml-40 space-x-1">
                                 <span className="w-3.5 h-3.5 bg-gray-500 rounded-full animate-bounceDelay1"></span>
                                 <span className="w-3.5 h-3.5 bg-gray-500 rounded-full animate-bounceDelay2"></span>
                                 <span className="w-3.5 h-3.5 bg-gray-500 rounded-full animate-bounceDelay3"></span>
@@ -125,24 +171,58 @@ export default function ChatArea({ conversation }) {
                 {loading ? (
                     <div className="text-gray-400">Loading messages...</div>
                 ) : (
-                    messages.map((msg, i) => (
-                        <div
-                            key={msg._id || i}
-                            className={`relative px-4 py-2 rounded-2xl text-mg max-w-lg break-words ${msg.sender?._id === currentUser._id
-                                ? "bg-blue-500 text-white self-end"
-                                : "bg-gray-300 text-black self-start"
-                                }`}
-                        >
-                            <div className="pr-12">{msg.text}</div>
-                            <span className="absolute bottom-1 right-3 text-[10px] opacity-70">
-                                {msg.createdAt &&
-                                    new Date(msg.createdAt).toLocaleTimeString([], {
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                    })}
-                            </span>
-                        </div>
-                    ))
+                    (() => {
+                        let lastMessageDay = null;
+                        return messages
+                            .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+                            .map((msg, i) => {
+                                const msgDay = formatDay(msg.createdAt);
+                                const showSeparator = msgDay !== lastMessageDay;
+                                lastMessageDay = msgDay;
+
+                                return (
+                                    <div key={msg._id || i} className="flex flex-col">
+                                        {showSeparator && (
+                                            <div className="flex justify-center my-4">
+                                                <span className="px-4.5 py-2 text-sm font-semibold bg-gray-300 text-gray-700 rounded-full shadow-sm tracking-wide">
+                                                    {msgDay}
+                                                </span>
+                                            </div>
+                                        )}
+                                        <div
+                                            className={`flex ${msg.sender?._id === currentUser._id ? "justify-end" : "justify-start"
+                                                }`}
+                                        >
+                                            <div
+                                                className={`relative px-4 py-2 rounded-2xl text-mg max-w-lg break-words ${msg.sender?._id === currentUser._id
+                                                    ? "bg-blue-500 text-white"
+                                                    : "bg-gray-300 text-black"
+                                                    }`}
+                                            >
+                                                <div className="pr-12">{msg.text}</div>
+                                                <span className="absolute bottom-1 right-3 text-[10px] opacity-70">
+                                                    {msg.createdAt &&
+                                                        new Date(msg.createdAt).toLocaleTimeString([], {
+                                                            hour: "2-digit",
+                                                            minute: "2-digit",
+                                                        })}
+                                                </span>
+
+                                                {msg.sender?._id === currentUser._id && (
+                                                    <span className="text-xs text-gray-200 ml-1">
+                                                        {msg.status === "sent"
+                                                            ? "✓"
+                                                            : msg.status === "delivered"
+                                                                ? "✓✓"
+                                                                : "✓✓✔"}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            });
+                    })()
                 )}
             </div>
 
@@ -172,6 +252,5 @@ export default function ChatArea({ conversation }) {
                 </button>
             </div>
         </div>
-
     );
 }
