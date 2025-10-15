@@ -8,7 +8,7 @@ export default function Sidebar({ onSelectConversation, selectedConversation }) 
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const { user: currentUser } = useAuth();
-  const { socket } = useSocket();
+  const { socket, onlineUsers } = useSocket();
 
   useEffect(() => {
     const fetchConversations = async () => {
@@ -107,8 +107,11 @@ export default function Sidebar({ onSelectConversation, selectedConversation }) 
                 ${isActive ? "bg-blue-100 font-medium" : "bg-gray-50 hover:bg-gray-100"}
               `}
             >
-              <div className="font-semibold">
+              <div className="font-semibold flex items-center gap-2">
                 {otherUser?.username || "Unknown User"}
+                {onlineUsers?.has?.(otherUser?._id?.toString()) && (
+                  <div className="w-3 h-3 mt-1 rounded-full bg-green-500"></div>
+                )}
               </div>
 
               {conv.lastMessage && (

@@ -8,7 +8,12 @@ export const SocketProvider = ({ children }) => {
   const { user } = useAuth();
   const socketRef = useRef(null);
   const [socketReady, setSocketReady] = useState(false);
-  const [messages, setMessages] = useState([]); 
+  const [messages, setMessages] = useState([]);
+  const [onlineUsers, setOnlineUsers] = useState(new Set());
+
+  useEffect(() => {
+    console.log('Online users updated:', Array.from(onlineUsers));
+  }, [onlineUsers]); 
 
   useEffect(() => {
     if (!user) return;
@@ -26,6 +31,8 @@ export const SocketProvider = ({ children }) => {
         socketRef.current.emit("join_conversation", convIds);
         console.log("Joined conversation rooms:", convIds);
       }
+
+      socketRef.current.emit("get_online_users");
     });
 
     socketRef.current.on("disconnect", (reason) => {
@@ -49,10 +56,20 @@ export const SocketProvider = ({ children }) => {
       setMessages((prev) => [...prev, msg]);
     };
 
+    const handleOnlineUsers = (data) => {
+      console.log('Received online users:', data);
+      const userList = data?.users || [];
+      const onlineUserIds = new Set(userList.map(userId => userId.toString()));
+      console.log('Processed online user IDs:', Array.from(onlineUserIds));
+      setOnlineUsers(onlineUserIds);
+    };
+
     socketRef.current.on("new_message", handleNewMessage);
+    socketRef.current.on("online_users", handleOnlineUsers);
 
     return () => {
       socketRef.current.off("new_message", handleNewMessage);
+      socketRef.current.off("online_users", handleOnlineUsers);
     };
   }, [socketReady]);
 
@@ -67,6 +84,7 @@ export const SocketProvider = ({ children }) => {
         socket: socketRef.current,
         messages,
         sendMessage,
+        onlineUsers,
       }}
     >
       {children}
