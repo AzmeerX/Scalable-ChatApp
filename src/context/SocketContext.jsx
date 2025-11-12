@@ -12,10 +12,6 @@ export const SocketProvider = ({ children }) => {
   const [onlineUsers, setOnlineUsers] = useState(new Set());
 
   useEffect(() => {
-    console.log('Online users updated:', Array.from(onlineUsers));
-  }, [onlineUsers]); 
-
-  useEffect(() => {
     if (!user) return;
 
     socketRef.current = io(import.meta.env.VITE_API_BASE_URL, {
@@ -35,8 +31,7 @@ export const SocketProvider = ({ children }) => {
       socketRef.current.emit("get_online_users");
     });
 
-    socketRef.current.on("disconnect", (reason) => {
-      console.log("Disconnected:", reason);
+    socketRef.current.on("disconnect", () => {
       setSocketReady(false);
     });
 
@@ -52,15 +47,12 @@ export const SocketProvider = ({ children }) => {
     if (!socketRef.current) return;
 
     const handleNewMessage = (msg) => {
-      console.log("New message received:", msg);
       setMessages((prev) => [...prev, msg]);
     };
 
     const handleOnlineUsers = (data) => {
-      console.log('Received online users:', data);
       const userList = data?.users || [];
       const onlineUserIds = new Set(userList.map(userId => userId.toString()));
-      console.log('Processed online user IDs:', Array.from(onlineUserIds));
       setOnlineUsers(onlineUserIds);
     };
 

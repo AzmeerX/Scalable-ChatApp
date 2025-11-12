@@ -21,15 +21,7 @@ const router = createBrowserRouter([
         element: <ChatPage />,
       },
     ],
-  },
-  {
-    path: "/chats",
-    element: (
-      <ProtectedRoute>
-        <ChatPage />
-      </ProtectedRoute>
-    ),
-  },
+  }
 ]);
 
 export default function AppRouter() {

@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useSocket } from "../context/SocketContext.jsx";
+import GroupButton from "../group-chat/GroupButton.jsx";
+import { useUserSearch } from "../hooks/useUserSearch.jsx";
 import api from "../api/axiosInstance.js";
-import { useSocket } from "../context/SocketContext.jsx"; 
+import SearchBar from "../helpers/searchBar.jsx";
 
 export default function Sidebar({ onSelectConversation, selectedConversation }) {
   const [conversations, setConversations] = useState([]);
@@ -40,32 +43,32 @@ export default function Sidebar({ onSelectConversation, selectedConversation }) 
     return () => socket.off("new_message");
   }, [socket]);
 
-  const handleSearch = async () => {
-    if (!search.trim()) return;
+  // const handleSearch = async () => {
+  //   if (!search.trim()) return;
 
-    try {
-      const { data } = await api.post("/api/v1/conversations/create-or-find", {
-        username: search.trim(),
-      });
+  //   try {
+  //     const { data } = await api.post("/api/v1/conversations/create-or-find", {
+  //       username: search.trim(),
+  //     });
 
-      const conversation = {
-        ...data.data,
-        participants: data.data.participants
-          ? data.data.participants
-          : [data.data.user1, data.data.user2],
-      };
+  //     const conversation = {
+  //       ...data.data,
+  //       participants: data.data.participants
+  //         ? data.data.participants
+  //         : [data.data.user1, data.data.user2],
+  //     };
 
-      if (!conversations.find((c) => c._id === conversation._id)) {
-        setConversations((prev) => [conversation, ...prev]);
-      }
+  //     if (!conversations.find((c) => c._id === conversation._id)) {
+  //       setConversations((prev) => [conversation, ...prev]);
+  //     }
 
-      onSelectConversation(conversation);
-      setSearch("");
-    } catch (err) {
-      console.error(err);
-      alert("User not found or cannot create conversation");
-    }
-  };
+  //     onSelectConversation(conversation);
+  //     setSearch("");
+  //   } catch (err) {
+  //     console.error(err);
+  //     alert("User not found or cannot create conversation");
+  //   }
+  // };
 
   if (loading) {
     return (
@@ -79,13 +82,16 @@ export default function Sidebar({ onSelectConversation, selectedConversation }) 
     <div className="w-1/4 bg-white border-r border-gray-200 p-4">
       <h2 className="text-lg font-semibold mb-4">Chats</h2>
 
-      <input
-        type="text"
-        placeholder="Search username..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-        className="p-2 rounded bg-gray-100 w-full mb-2 focus:outline-none"
+      <SearchBar
+        onSelectConversation={onSelectConversation}
+        setConversations={setConversations}
+        conversations={conversations}
+      />
+
+      <GroupButton
+        onGroupCreated={(group) =>
+          setConversations((prev) => [group, ...prev])
+        }
       />
 
       <div className="space-y-2">
