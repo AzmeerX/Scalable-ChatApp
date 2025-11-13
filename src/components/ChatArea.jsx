@@ -122,7 +122,7 @@ export default function ChatArea({ conversation }) {
 
     if (!conversation) {
         return (
-            <div className="flex-1 flex items-center justify-center text-gray-400">
+            <div className="flex-1 text-xl flex items-center justify-center text-blue-600">
                 Select a chat to start messaging
             </div>
         );

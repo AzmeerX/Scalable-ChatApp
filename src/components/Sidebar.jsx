@@ -2,14 +2,12 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useSocket } from "../context/SocketContext.jsx";
 import GroupButton from "../group-chat/GroupButton.jsx";
-import { useUserSearch } from "../hooks/useUserSearch.jsx";
 import api from "../api/axiosInstance.js";
 import SearchBar from "../helpers/searchBar.jsx";
 
 export default function Sidebar({ onSelectConversation, selectedConversation }) {
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
   const { user: currentUser } = useAuth();
   const { socket, onlineUsers } = useSocket();
 
@@ -29,46 +27,18 @@ export default function Sidebar({ onSelectConversation, selectedConversation }) 
 
   useEffect(() => {
     if (!socket) return;
-    socket.on("new_message", (message) => {
-      setConversations((prev) => {
-        return prev.map((conv) => {
-          if (conv._id === message.conversationId) {
-            return { ...conv, lastMessage: message };
-          }
-          return conv;
-        });
-      });
-    });
 
-    return () => socket.off("new_message");
+    const handleNewMessage = (message) => {
+      setConversations((prev) =>
+        prev.map((conv) =>
+          conv._id === message.conversationId ? { ...conv, lastMessage: message } : conv
+        )
+      );
+    };
+
+    socket.on("new_message", handleNewMessage);
+    return () => socket.off("new_message", handleNewMessage);
   }, [socket]);
-
-  // const handleSearch = async () => {
-  //   if (!search.trim()) return;
-
-  //   try {
-  //     const { data } = await api.post("/api/v1/conversations/create-or-find", {
-  //       username: search.trim(),
-  //     });
-
-  //     const conversation = {
-  //       ...data.data,
-  //       participants: data.data.participants
-  //         ? data.data.participants
-  //         : [data.data.user1, data.data.user2],
-  //     };
-
-  //     if (!conversations.find((c) => c._id === conversation._id)) {
-  //       setConversations((prev) => [conversation, ...prev]);
-  //     }
-
-  //     onSelectConversation(conversation);
-  //     setSearch("");
-  //   } catch (err) {
-  //     console.error(err);
-  //     alert("User not found or cannot create conversation");
-  //   }
-  // };
 
   if (loading) {
     return (
@@ -79,8 +49,8 @@ export default function Sidebar({ onSelectConversation, selectedConversation }) 
   }
 
   return (
-    <div className="w-1/4 bg-white border-r border-gray-200 p-4">
-      <h2 className="text-lg font-semibold mb-4">Chats</h2>
+    <div className="w-1/4 bg-white border-r border-gray-200 p-4 flex flex-col">
+      <h2 className="text-xl text-center font-semibold mb-4">Chats</h2>
 
       <SearchBar
         onSelectConversation={onSelectConversation}
@@ -94,9 +64,9 @@ export default function Sidebar({ onSelectConversation, selectedConversation }) 
         }
       />
 
-      <div className="space-y-2">
+      <div className="flex-1 mt-2 space-y-2 overflow-y-auto">
         {conversations.length === 0 && (
-          <div className="text-gray-500">No conversations yet.</div>
+          <div className="text-gray-500 text-center mt-4">No conversations yet.</div>
         )}
 
         {conversations.map((conv) => {
@@ -109,36 +79,49 @@ export default function Sidebar({ onSelectConversation, selectedConversation }) 
             <div
               key={conv._id}
               onClick={() => onSelectConversation(conv)}
-              className={`p-3 rounded-lg cursor-pointer transition-all 
-                ${isActive ? "bg-blue-100 font-medium" : "bg-gray-50 hover:bg-gray-100"}
-              `}
+              className={`flex items-center p-3 gap-3 cursor-pointer rounded-lg transition-all
+                ${isActive ? "bg-blue-100 font-medium" : "bg-gray-50 hover:bg-gray-100"}`}
             >
-              <div className="font-semibold flex items-center gap-2">
-                {otherUser?.username || "Unknown User"}
-                {onlineUsers?.has?.(otherUser?._id?.toString()) && (
-                  <div className="w-3 h-3 mt-1 rounded-full bg-green-500"></div>
+              <img
+                src={
+                  otherUser?.profile ||
+                  `https://res.cloudinary.com/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload/v1763034660/149071_uc10n7.png`
+                }
+                alt={otherUser?.username}
+                className="w-10 h-10 rounded-full object-cover"
+              />
+
+              <div className="flex-1 text-lg flex flex-col overflow-hidden">
+                <div className="flex items-center justify-between">
+                  <span className="truncate font-semibold">
+                    {otherUser.username}
+                  </span>
+                  {onlineUsers?.has?.(otherUser?._id?.toString()) && (
+                    <div className="w-3 h-3 rounded-full bg-green-500 ml-2 flex-shrink-0"></div>
+                  )}
+                </div>
+                {conv.lastMessage ? (
+                  <div className="text-gray-500 text-md truncate mt-0.5">
+                    <span className="font-semibold">
+                      {conv.lastMessage.sender?._id === currentUser._id
+                        ? "You"
+                        : conv.lastMessage.sender?.username}
+                      :
+                    </span>{" "}
+                    {conv.lastMessage.text}
+                  </div>
+                ) : (
+                  <div className="text-gray-400 text-md mt-0.5">No messages yet</div>
                 )}
               </div>
 
               {conv.lastMessage && (
-                <div className="flex justify-between text-gray-500 text-sm mt-1">
-                  <span className="truncate">
-                    <span className="font-semibold">
-                      {conv.lastMessage.sender?.username === currentUser.username
-                        ? "You"
-                        : conv.lastMessage.sender?.username}
-                      :{" "}
-                    </span>
-                    {conv.lastMessage.text}
-                  </span>
-
-                  <span className="ml-2 text-xs text-gray-400 flex-shrink-0">
-                    {new Date(conv.lastMessage.createdAt).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </span>
-                </div>
+                <span className="ml-2 text-md text-gray-400 flex-shrink-0">
+                  {new Date(conv.lastMessage.createdAt).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
               )}
             </div>
           );

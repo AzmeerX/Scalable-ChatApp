@@ -9,7 +9,10 @@ const highlightMatch = (text, query) => {
 
   return parts.map((part, i) =>
     regex.test(part) ? (
-      <span key={i} className="bg-gradient-to-r from-amber-300 to-yellow-300 font-bold text-gray-900 px-1 rounded">
+      <span
+        key={i}
+        className="bg-gradient-to-r from-amber-300 to-yellow-300 font-bold text-gray-900 px-1 rounded"
+      >
         {part}
       </span>
     ) : (
@@ -20,6 +23,8 @@ const highlightMatch = (text, query) => {
 
 export default function SearchBar({ onSelectConversation, setConversations, conversations }) {
   const { search, setSearch, loading, results } = useUserSearch();
+
+  const defaultProfile = `https://res.cloudinary.com/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload/v1763034660/149071_uc10n7.png`;
 
   const handleUserClick = async (username) => {
     try {
@@ -74,17 +79,13 @@ export default function SearchBar({ onSelectConversation, setConversations, conv
                 animation: `slideIn 0.3s ease-out ${idx * 0.05}s both`
               }}
             >
-              <div className="relative">
-                <img
-                  src={u.profile || "/default-avatar.png"}
-                  alt={u.username}
-                  className="w-10 h-10 rounded-full object-cover ring-2 ring-gray-100 group-hover:ring-amber-300 transition-all"
-                />
-              </div>
+              <img
+                src={u.profile?.trim() || defaultProfile}
+                alt={u.username}
+                className="w-10 h-10 rounded-full object-cover ring-2 ring-gray-100 group-hover:ring-amber-300 transition-all"
+              />
               <div className="flex-1">
-                <p className="font-medium text-gray-900">
-                  {highlightMatch(u.username, search)}
-                </p>
+                <p className="font-medium text-gray-900">{highlightMatch(u.username, search)}</p>
               </div>
               <svg
                 className="w-5 h-5 text-gray-300 group-hover:text-amber-400 transition-colors"
