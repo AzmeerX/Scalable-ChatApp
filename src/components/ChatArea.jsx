@@ -16,8 +16,6 @@ export default function ChatArea({ conversation }) {
     const typingTimeout = useRef(null);
     const TYPING_TIMEOUT = 2000;
 
-    let lastMessageDay = null;
-
     useEffect(() => {
         if (!conversation?._id) return;
         setLoading(true);
@@ -145,23 +143,22 @@ export default function ChatArea({ conversation }) {
 
     return (
         <div className="flex-1 flex flex-col">
-            <div className="p-4 border-b border-gray-200 bg-white flex items-center justify-between">
-                <h2 className="font-semibold flex items-center gap-2">
+            <div className="p-4 border-b border-gray-200 bg-white relative flex flex-col items-center">
+                <h2 className="font-semibold">
                     {conversation.participants
                         ?.filter((p) => p._id !== currentUser._id)
                         ?.map((p) => p.username)
                         ?.join(", ") || "Unknown User"}
-
-                    {typingUsers.length > 0 && (
-                        <span className="flex items-center gap-1 text-sm text-gray-500 italic">
-                            <span className="flex ml-40 space-x-1">
-                                <span className="w-3.5 h-3.5 bg-gray-500 rounded-full animate-bounceDelay1"></span>
-                                <span className="w-3.5 h-3.5 bg-gray-500 rounded-full animate-bounceDelay2"></span>
-                                <span className="w-3.5 h-3.5 bg-gray-500 rounded-full animate-bounceDelay3"></span>
-                            </span>
-                        </span>
-                    )}
                 </h2>
+
+                {typingUsers.length > 0 && (
+                    <div className="flex items-center gap-1 mt-1">
+                        <span className="w-3.5 h-3.5 bg-gray-500 rounded-full animate-bounceDelay1"></span>
+                        <span className="w-3.5 h-3.5 bg-gray-500 rounded-full animate-bounceDelay2"></span>
+                        <span className="w-3.5 h-3.5 bg-gray-500 rounded-full animate-bounceDelay3"></span>
+                        <span className="text-sm text-gray-500 italic">typing...</span>
+                    </div>
+                )}
             </div>
 
             <div
@@ -236,6 +233,7 @@ export default function ChatArea({ conversation }) {
                         setInput(e.target.value);
                         if (socket && conversation?._id) {
                             socket.emit("typing_start", { conversationId: conversation._id });
+                            handleInputChange(e);
                             clearTimeout(typingTimeout.current);
                             typingTimeout.current = setTimeout(() => {
                                 socket.emit("typing_stop", { conversationId: conversation._id });

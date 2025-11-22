@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useSocket } from "../context/SocketContext.jsx";
-import GroupButton from "../group-chat/GroupButton.jsx";
 import api from "../api/axiosInstance.js";
 import SearchBar from "../helpers/searchBar.jsx";
 
@@ -56,12 +55,6 @@ export default function Sidebar({ onSelectConversation, selectedConversation }) 
         onSelectConversation={onSelectConversation}
         setConversations={setConversations}
         conversations={conversations}
-      />
-
-      <GroupButton
-        onGroupCreated={(group) =>
-          setConversations((prev) => [group, ...prev])
-        }
       />
 
       <div className="flex-1 mt-2 space-y-2 overflow-y-auto">
