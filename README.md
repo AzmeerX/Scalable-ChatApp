@@ -1,16 +1,54 @@
-# React + Vite
+<h1 style="margin: auto">Scalable-ChatApp<h1>
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A real-time, scalable chat application built with Node.js, Socket.IO, Redis, and MongoDB. Designed for low-latency messaging and user presence tracking.
 
-Currently, two official plugins are available:
+<h3>Live Demo: https://scalable-chat-app-three.vercel.app/<h3>
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+<h2>Tech Stack<h2>
 
-## React Compiler
+Backend: Node.js, Express
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Real-time Communication: Socket.IO
 
-## Expanding the ESLint configuration
+Database: MongoDB (with Mongoose)
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Cache: Redis (online/offline presence)
+
+Frontend: React
+
+Deployment: Vercel (frontend), Render (backend)
+
+<h2>Key Features<h2>
+
+<ul>
+<li>Real-time messaging between users</li>
+<li>Online/offline presence tracking using Redis</li>
+<li>Persistent message storage in MongoDB</li>
+<li>Scalable architecture ready for multiple Socket.IO instances</li>
+</ul>
+
+<h2>Architecture Overview</h2>
+<img src="/assets/Architecture-Diagram.png">
+
+<h2>Design Decisions & Trade-offs</h2>
+
+Redis for Presence:
+Fast, in-memory store for ephemeral user status. Avoids unnecessary DB writes and reduces latency.
+
+Socket.IO over raw WebSockets:
+Simplifies event handling, automatic reconnections, and room management.
+
+MongoDB for Persistence:
+Stores messages reliably while separating ephemeral presence state.
+
+<h2>How It Works</h2>
+
+User connects → Socket.IO handshake
+
+Redis updates online presence
+
+Messages are broadcasted via Socket.IO and stored in MongoDB
+
+Redis broadcasts presence updates to all connected clients
+
+Disconnections handled; presence rebuilds on reconnect
