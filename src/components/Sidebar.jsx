@@ -64,9 +64,15 @@ export default function Sidebar({ onSelectConversation, selectedConversation }) 
 
         {conversations.map((conv) => {
           const isActive = selectedConversation?._id?.toString() === conv._id?.toString();
-          const otherUser = conv.participants?.filter(
-            (p) => p._id !== currentUser._id
-          )[0];
+          const otherUser = conv.participants?.find(
+            (p) => p._id.toString() !== currentUser._id.toString()
+          );
+
+          console.log({
+            otherUserId: otherUser?._id?.toString(),
+            onlineUsers: [...onlineUsers],
+            isOnline: onlineUsers.has(otherUser?._id?.toString())
+          });
 
           return (
             <div

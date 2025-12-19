@@ -105,10 +105,11 @@ export default function Register() {
 
         <button
           type="submit"
-          className="bg-green-500 text-white p-2 rounded hover:bg-green-600"
+          className="bg-green-500 text-white p-2 rounded hover:bg-green-600 cursor-pointer transition"
         >
           Register
         </button>
+        <button className="text-white hover:underline cursor-pointer" onClick={() => navigate("/login")}>Already Logged In?</button>
       </form>
     </div>
   );
