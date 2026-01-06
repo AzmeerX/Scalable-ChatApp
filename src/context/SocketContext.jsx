@@ -51,7 +51,7 @@ export const SocketProvider = ({ children }) => {
     };
 
     const handleOnlineUsers = (data) => {
-      const userList = data?.users || [];
+      const userList = Array.isArray(data?.users) ? data.users : [];
       const onlineUserIds = new Set(userList.map(userId => userId.toString()));
       setOnlineUsers(onlineUserIds);
     };

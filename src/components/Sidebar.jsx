@@ -85,9 +85,14 @@ export default function Sidebar({ onSelectConversation, selectedConversation }) 
                         (p) => p._id.toString() !== currentUser._id.toString()
                     );
 
+                    console.log("otherUser", otherUser);
+
                     const isOnline = onlineUsers?.has?.(
                         otherUser?._id?.toString()
                     );
+
+                    console.log("onlineUsers", Array.from(onlineUsers), "checking for", otherUser?._id?.toString());
+                    console.log("isOnline", isOnline);
 
                     return (
                         <div
@@ -113,7 +118,7 @@ export default function Sidebar({ onSelectConversation, selectedConversation }) 
                                 />
                                 {isOnline && (
                                     <span className="absolute bottom-0 right-0 
-                                                     w-2.5 h-2.5 bg-green-500 
+                                                     w-3.5 h-3.5 bg-green-500 
                                                      border-2 border-white rounded-full" />
                                 )}
                             </div>
