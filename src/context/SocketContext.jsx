@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { io } from "socket.io-client";
 import { useAuth } from "./AuthContext.jsx";
 
@@ -65,20 +65,20 @@ export const SocketProvider = ({ children }) => {
     };
   }, [socketReady]);
 
-  const sendMessage = (conversationId, text, media = null) => {
+  const sendMessage = useCallback((conversationId, text, media = null) => {
     if (!socketRef.current) return;
     socketRef.current.emit("send_message", { conversationId, text, media });
-  };
+  }, []);
+
+  const contextValue = useMemo(() => ({
+    socket: socketRef.current,
+    messages,
+    sendMessage,
+    onlineUsers,
+  }), [messages, sendMessage, onlineUsers]);
 
   return (
-    <SocketContext.Provider
-      value={{
-        socket: socketRef.current,
-        messages,
-        sendMessage,
-        onlineUsers,
-      }}
-    >
+    <SocketContext.Provider value={contextValue}>
       {children}
     </SocketContext.Provider>
   );

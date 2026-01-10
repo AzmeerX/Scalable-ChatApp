@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import api from "../api/axiosInstance";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useSocket } from "../context/SocketContext";
@@ -17,9 +17,6 @@ export default function ChatArea({ conversation, onBack }) {
     const typingTimeout = useRef(null);
     const TYPING_TIMEOUT = 2000;
 
-    /* =======================
-       Fetch Messages
-    ======================= */
     useEffect(() => {
         if (!conversation?._id) return;
 
@@ -51,17 +48,13 @@ export default function ChatArea({ conversation, onBack }) {
         }
     };
 
-    /* =======================
-       Join Conversation Room
-    ======================= */
+    /* Join Conversation Room */
     useEffect(() => {
         if (!socket || !conversation?._id) return;
         socket.emit("join_conversation", [conversation._id]);
     }, [socket, conversation?._id]);
 
-    /* =======================
-       Typing Indicator
-    ======================= */
+    /* Typing Indicator */
     useEffect(() => {
         if (!socket || !conversation?._id) return;
 
@@ -85,9 +78,7 @@ export default function ChatArea({ conversation, onBack }) {
         };
     }, [socket, conversation?._id, currentUser._id]);
 
-    /* =======================
-       New Messages
-    ======================= */
+    /* New Messages */
     useEffect(() => {
         if (!socket || !conversation?._id) return;
 
@@ -102,9 +93,7 @@ export default function ChatArea({ conversation, onBack }) {
         return () => socket.off("new_message", handleNewMessage);
     }, [socket, conversation?._id]);
 
-    /* =======================
-       Delivery Status
-    ======================= */
+    /* Delivery Status */
     useEffect(() => {
         if (!socket || !conversation) return;
 
@@ -137,10 +126,8 @@ export default function ChatArea({ conversation, onBack }) {
         scrollToBottom();
     }, [messages]);
 
-    /* =======================
-       Send Message
-    ======================= */
-    const handleSend = () => {
+    /* Send Message */
+    const handleSend = useCallback(() => {
         if (!input.trim() || !conversation) return;
 
         const text = input.trim();
@@ -154,12 +141,10 @@ export default function ChatArea({ conversation, onBack }) {
         socket.emit("typing_stop", {
             conversationId: conversation._id,
         });
-    };
+    }, [input, conversation, socket]);
 
-    /* =======================
-       Input Change (Typing)
-    ======================= */
-    const handleInputChange = (e) => {
+    /* Input Change (Typing) */
+    const handleInputChange = useCallback((e) => {
         setInput(e.target.value);
         if (!socket || !conversation?._id) return;
 
@@ -176,7 +161,7 @@ export default function ChatArea({ conversation, onBack }) {
             });
             typingTimeout.current = null;
         }, TYPING_TIMEOUT);
-    };
+    }, [socket, conversation?._id, TYPING_TIMEOUT]);
 
     if (!conversation) {
         return (

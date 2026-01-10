@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useSocket } from "../context/SocketContext.jsx";
 import api from "../api/axiosInstance.js";
@@ -41,6 +41,28 @@ export default function Sidebar({ onSelectConversation, selectedConversation }) 
         return () => socket.off("new_message", handleNewMessage);
     }, [socket]);
 
+    const handleSelectConversation = useCallback((conv) => {
+        onSelectConversation(conv);
+    }, [onSelectConversation]);
+
+    const conversationData = useMemo(() => {
+        return conversations.map((conv) => {
+            const isActive =
+                selectedConversation?._id?.toString() ===
+                conv._id?.toString();
+
+            const otherUser = conv.participants?.find(
+                (p) => p._id.toString() !== currentUser._id.toString()
+            );
+
+            const isOnline = onlineUsers?.has?.(
+                otherUser?._id?.toString()
+            );
+
+            return { conv, isActive, otherUser, isOnline };
+        });
+    }, [conversations, selectedConversation, currentUser._id, onlineUsers]);
+
     if (loading) {
         return (
             <div className="w-full sm:w-80 p-4 bg-white border-r border-gray-200">
@@ -76,28 +98,12 @@ export default function Sidebar({ onSelectConversation, selectedConversation }) 
                     </div>
                 )}
 
-                {conversations.map((conv) => {
-                    const isActive =
-                        selectedConversation?._id?.toString() ===
-                        conv._id?.toString();
-
-                    const otherUser = conv.participants?.find(
-                        (p) => p._id.toString() !== currentUser._id.toString()
-                    );
-
-                    console.log("otherUser", otherUser);
-
-                    const isOnline = onlineUsers?.has?.(
-                        otherUser?._id?.toString()
-                    );
-
-                    console.log("onlineUsers", Array.from(onlineUsers), "checking for", otherUser?._id?.toString());
-                    console.log("isOnline", isOnline);
+                {conversationData.map(({ conv, isActive, otherUser, isOnline }) => {
 
                     return (
                         <div
                             key={conv._id}
-                            onClick={() => onSelectConversation(conv)}
+                            onClick={() => handleSelectConversation(conv)}
                             className={`flex items-center gap-3 cursor-pointer 
                                 rounded-lg p-2 sm:p-3 transition-all
                                 ${

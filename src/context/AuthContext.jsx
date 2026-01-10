@@ -1,4 +1,4 @@
-import { createContext, useEffect, useState, useContext } from "react";
+import { createContext, useEffect, useState, useContext, useMemo, useCallback } from "react";
 import api from "../api/axiosInstance.js";
 
 export const AuthContext = createContext();
@@ -21,18 +21,25 @@ export default function AuthProvider({ children }) {
         })();
     }, []);
 
-    const login = async (credentials) => {
+    const login = useCallback(async (credentials) => {
         const { data } = await api.post("/api/v1/users/login", credentials);
         setUser(data.data.user);
-    }
+    }, []);
 
-    const logout = async () => {
+    const logout = useCallback(async () => {
         await api.post("/api/v1/users/logout");
         setUser(null);
-    };
+    }, []);
+
+    const contextValue = useMemo(() => ({
+        user,
+        login,
+        logout,
+        loading,
+    }), [user, login, logout, loading]);
 
     return (
-        <AuthContext.Provider value={{ user, login, logout, loading }}>
+        <AuthContext.Provider value={contextValue}>
             {children}
         </AuthContext.Provider>
     );

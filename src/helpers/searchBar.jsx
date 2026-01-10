@@ -1,32 +1,31 @@
+import { useCallback } from "react";
 import { useUserSearch } from "../hooks/useUserSearch";
 import api from "../api/axiosInstance";
-
-const highlightMatch = (text, query) => {
-  if (!query) return text;
-
-  const regex = new RegExp(`(${query})`, "gi");
-  const parts = text.split(regex);
-
-  return parts.map((part, i) =>
-    regex.test(part) ? (
-      <span
-        key={i}
-        className="bg-gradient-to-r from-amber-300 to-yellow-300 font-bold text-gray-900 px-1 rounded"
-      >
-        {part}
-      </span>
-    ) : (
-      part
-    )
-  );
-};
 
 export default function SearchBar({ onSelectConversation, setConversations, conversations }) {
   const { search, setSearch, loading, results } = useUserSearch();
 
   const defaultProfile = `https://res.cloudinary.com/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload/v1763034660/149071_uc10n7.png`;
 
-  const handleUserClick = async (username) => {
+  const highlightMatch = useCallback((text, query) => {
+    if (!query) return text;
+    const regex = new RegExp(`(${query})`, "gi");
+    const parts = text.split(regex);
+    return parts.map((part, i) =>
+      regex.test(part) ? (
+        <span
+          key={i}
+          className="bg-gradient-to-r from-amber-300 to-yellow-300 font-bold text-gray-900 px-1 rounded"
+        >
+          {part}
+        </span>
+      ) : (
+        part
+      )
+    );
+  }, []);
+
+  const handleUserClick = useCallback(async (username) => {
     try {
       const { data } = await api.post("/api/v1/conversations/create-or-find", { username });
       const conversation = data.data;
@@ -39,7 +38,7 @@ export default function SearchBar({ onSelectConversation, setConversations, conv
     } catch (err) {
       console.error(err);
     }
-  };
+  }, [conversations, onSelectConversation, setSearch, setConversations]);
 
   return (
     <div className="relative mb-4">
