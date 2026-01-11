@@ -12,6 +12,7 @@ export default function ChatArea({ conversation, onBack }) {
     const [loading, setLoading] = useState(false);
     const [input, setInput] = useState("");
     const [typingUsers, setTypingUsers] = useState([]);
+    const [error, setError] = useState(null);
 
     const scrollRef = useRef(null);
     const typingTimeout = useRef(null);
@@ -77,6 +78,19 @@ export default function ChatArea({ conversation, onBack }) {
             socket.off("typing", handleTyping);
         };
     }, [socket, conversation?._id, currentUser._id]);
+
+    /* Rate Limiting */
+    useEffect(() => {
+        if (!socket) return;
+
+        const handleErrorMessage = ({ error }) => {
+            setError(error);
+            setTimeout(() => setError(null), 4000);
+        };
+
+        socket.on("error_message", handleErrorMessage);
+        return () => socket.off("error_message", handleErrorMessage);
+    }, [socket]);
 
     /* New Messages */
     useEffect(() => {
@@ -173,6 +187,13 @@ export default function ChatArea({ conversation, onBack }) {
 
     return (
         <div className="flex-1 flex flex-col h-[100dvh]">
+            {/* Error Notification */}
+            {error && (
+                <div className="bg-red-500 text-white px-4 py-3 text-sm animate-slide-down">
+                    ⚠️ {error}
+                </div>
+            )}
+
             {/* Header */}
             <div className="relative p-4 border-b bg-white flex flex-col items-center gap-1">
                 {onBack && (

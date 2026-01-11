@@ -19,13 +19,11 @@ export const SocketProvider = ({ children }) => {
     });
 
     socketRef.current.on("connect", () => {
-      console.log("Connected to socket:", socketRef.current.id);
       setSocketReady(true);
 
       if (user.conversations?.length) {
         const convIds = user.conversations.map((c) => c.toString());
         socketRef.current.emit("join_conversation", convIds);
-        console.log("Joined conversation rooms:", convIds);
       }
 
       socketRef.current.emit("get_online_users");
