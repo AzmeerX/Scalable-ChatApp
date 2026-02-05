@@ -95,6 +95,36 @@ export default function ChatArea({ conversation, onBack }) {
                     ? [...data.data].reverse()
                     : [];
 
+                // Get all unique senders to fetch their keys
+                const allSenders = new Set(msgs.map(m => m.sender._id));
+                
+                // Ensure we have all senders' keys cached
+                for (const senderId of allSenders) {
+                    if (!keys?.[senderId] && !recipientPublicKeys[senderId]) {
+                        try {
+                            let response;
+                            try {
+                                response = await api.get(
+                                    `/api/v1/users/public-key/${senderId}`
+                                );
+                            } catch {
+                                response = await api.get(
+                                    `/api/v1/users/${senderId}/public-key`
+                                );
+                            }
+                            const senderKey = response?.data?.data?.publicKey;
+                            if (senderKey) {
+                                setRecipientPublicKeys(prev => ({
+                                    ...prev,
+                                    [senderId]: senderKey
+                                }));
+                            }
+                        } catch (err) {
+                            // Failed to fetch sender key
+                        }
+                    }
+                }
+
                 // Decrypt messages if we have the private key
                 if (
                     keyPair?.privateKey &&
@@ -109,35 +139,13 @@ export default function ChatArea({ conversation, onBack }) {
                                 msg.iv &&
                                 msg.signature
                             ) {
-                                const senderPublicKey = keys
-                                    ? keys[msg.sender._id]
-                                    : recipientPublicKeys[msg.sender._id];
+                                const senderPublicKey = keys?.[msg.sender._id] || recipientPublicKeys[msg.sender._id];
 
                                 if (!senderPublicKey) {
-                                    console.warn(
-                                        "No public key found for sender",
-                                        msg.sender._id
-                                    );
                                     decryptedMsgs.push(msg);
                                     continue;
                                 }
-                                if (!validatePublicKey(senderPublicKey)) {
-                                    console.warn(
-                                        "Invalid public key format for sender",
-                                        msg.sender._id
-                                    );
-                                    decryptedMsgs.push(msg);
-                                    continue;
-                                }
-                                if (
-                                    !(await validatePublicKeyForRsa(
-                                        senderPublicKey
-                                    ))
-                                ) {
-                                    console.warn(
-                                        "Unsupported public key algorithm for sender",
-                                        msg.sender._id
-                                    );
+                                if (!validatePublicKey(senderPublicKey) || !(await validatePublicKeyForRsa(senderPublicKey))) {
                                     decryptedMsgs.push(msg);
                                     continue;
                                 }
@@ -161,7 +169,6 @@ export default function ChatArea({ conversation, onBack }) {
                                 decryptedMsgs.push(msg);
                             }
                         } catch (err) {
-                            // Decryption failed
                             decryptedMsgs.push({
                                 ...msg,
                                 text: "[Decryption failed]",
@@ -176,7 +183,7 @@ export default function ChatArea({ conversation, onBack }) {
                     setMessages(msgs);
                 }
             } catch (err) {
-                console.error(err);
+                // Error handled
             } finally {
                 if (!cancelled) {
                     setLoading(false);
@@ -368,6 +375,17 @@ export default function ChatArea({ conversation, onBack }) {
                     recipientPublicKey,
                     keyPair.privateKey
                 );
+
+                // Debug: Log signature being sent
+                if (process.env.NODE_ENV === 'development') {
+                    console.log("📤 Sending message with signature:", {
+                        hasSignature: !!encryptedPayload.signature,
+                        signatureLength: encryptedPayload.signature?.length,
+                        signaturePreview: encryptedPayload.signature?.substring(0, 50),
+                        encryptedTextLength: encryptedPayload.encryptedText?.length,
+                        ivLength: encryptedPayload.iv?.length,
+                    });
+                }
 
                 // Use socket acknowledgement callback (if supported) to catch immediate server-side errors
                 socket.emit(
