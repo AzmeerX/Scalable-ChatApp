@@ -2,6 +2,7 @@ import { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext.jsx";
 import api from "../api/axiosInstance.js";
+import { generateKeyPair, storeKeyPair, ensureBase64PemPublicKey, validatePublicKey } from "../helpers/cryptoUtils.js";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -40,14 +41,37 @@ export default function Register() {
         imageUrl = res.data.secure_url;
       }
 
-      await api.post("/api/v1/users/signup", {
+      const signupRes = await api.post("/api/v1/users/signup", {
         username,
         email,
         password,
         profile: imageUrl || `https://res.cloudinary.com/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload/v1763034660/149071_uc10n7.png`,
       });
 
+      const userId = signupRes.data.data._id;
+
+      // Generate cryptographic keypair (one-time on signup)
+      const keyPair = await generateKeyPair();
+      
+      // Store private key locally (NEVER sent to backend)
+      storeKeyPair(userId, keyPair);
+
       await login({ username, email, password });
+
+      // Upload public key to backend (requires authenticated session)
+      try {
+        const publicKeyForUpload = await ensureBase64PemPublicKey(keyPair.publicKey);
+        if (!validatePublicKey(publicKeyForUpload)) {
+          throw new Error("Public key is invalid. Expected PEM with BEGIN PUBLIC KEY.");
+        }
+        await api.post("/api/v1/users/upload-public-key", {
+          publicKey: publicKeyForUpload,
+        });
+        console.log("Public key uploaded successfully");
+      } catch (keyUploadErr) {
+        console.warn("Failed to upload public key, will retry on next login:", keyUploadErr);
+      }
+
       navigate("/");
     } catch (err) {
       setError(err.response?.data?.message || "Registration failed");
@@ -114,3 +138,8 @@ export default function Register() {
     </div>
   );
 }
+
+
+
+
+

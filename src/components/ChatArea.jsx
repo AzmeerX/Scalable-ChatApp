@@ -2,52 +2,195 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import api from "../api/axiosInstance";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useSocket } from "../context/SocketContext";
+import { useCrypto } from "../context/CryptoContext.jsx";
 import formatDay from "../helpers/formatDate.js";
+import {
+    encryptMessage,
+    decryptMessage,
+    validatePrivateKey,
+    validatePublicKey,
+    validatePublicKeyForRsa,
+} from "../helpers/cryptoUtils.js";
 
 export default function ChatArea({ conversation, onBack }) {
     const { user: currentUser } = useAuth();
     const { socket } = useSocket();
+    const { keyPair } = useCrypto();
 
     const [messages, setMessages] = useState([]);
     const [loading, setLoading] = useState(false);
     const [input, setInput] = useState("");
     const [typingUsers, setTypingUsers] = useState([]);
     const [error, setError] = useState(null);
+    const [recipientPublicKeys, setRecipientPublicKeys] = useState({});
+    const [encryptionError, setEncryptionError] = useState(null);
+    const [sendRetry, setSendRetry] = useState({ messageText: null, retryCount: 0 });
 
     const scrollRef = useRef(null);
     const typingTimeout = useRef(null);
     const TYPING_TIMEOUT = 2000;
-
-    useEffect(() => {
-        if (!conversation?._id) return;
-
-        setLoading(true);
-
-        const fetchMessages = async () => {
-            try {
-                const { data } = await api.get(
-                    `/api/v1/messages/${conversation._id}`
-                );
-                const msgs = Array.isArray(data?.data)
-                    ? [...data.data].reverse()
-                    : [];
-                setMessages(msgs);
-            } catch (err) {
-                console.error(err);
-            } finally {
-                setLoading(false);
-                scrollToBottom();
-            }
-        };
-
-        fetchMessages();
-    }, [conversation?._id]);
 
     const scrollToBottom = () => {
         if (scrollRef.current) {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
     };
+
+    /* Fetch Recipient Public Keys */
+    const fetchRecipientPublicKeys = useCallback(async () => {
+        if (!conversation?.participants) return;
+
+        try {
+            const keys = {};
+            for (const participant of conversation.participants) {
+                if (participant._id !== currentUser._id) {
+                    try {
+                        let response;
+                        try {
+                            response = await api.get(
+                                `/api/v1/users/public-key/${participant._id}`
+                            );
+                        } catch (primaryErr) {
+                            response = await api.get(
+                                `/api/v1/users/${participant._id}/public-key`
+                            );
+                        }
+                        const { data } = response;
+                        const fetchedKey = data.data.publicKey;
+                        if (!validatePublicKey(fetchedKey) || !(await validatePublicKeyForRsa(fetchedKey))) {
+                            continue;
+                        }
+                        keys[participant._id] = fetchedKey;
+                    } catch (err) {
+                        // Skip if key fetch fails
+                    }
+                }
+            }
+            setRecipientPublicKeys(keys);
+            return keys;
+        } catch (err) {
+            // Error already handled in loop
+        }
+        return null;
+    }, [conversation?.participants, currentUser._id]);
+
+    /* Fetch Messages + Recipient Keys */
+    useEffect(() => {
+        if (!conversation?._id) return;
+
+        let cancelled = false;
+        setLoading(true);
+
+        const init = async () => {
+            try {
+                // Fetch recipient public keys first (fresh)
+                const keys = await fetchRecipientPublicKeys();
+
+                // Fetch messages
+                const { data } = await api.get(
+                    `/api/v1/messages/${conversation._id}`
+                );
+
+                let msgs = Array.isArray(data?.data)
+                    ? [...data.data].reverse()
+                    : [];
+
+                // Decrypt messages if we have the private key
+                if (
+                    keyPair?.privateKey &&
+                    validatePrivateKey(keyPair.privateKey)
+                ) {
+                    const decryptedMsgs = [];
+                    for (const msg of msgs) {
+                        try {
+                            // Check if message is encrypted
+                            if (
+                                msg.encryptedText &&
+                                msg.iv &&
+                                msg.signature
+                            ) {
+                                const senderPublicKey = keys
+                                    ? keys[msg.sender._id]
+                                    : recipientPublicKeys[msg.sender._id];
+
+                                if (!senderPublicKey) {
+                                    console.warn(
+                                        "No public key found for sender",
+                                        msg.sender._id
+                                    );
+                                    decryptedMsgs.push(msg);
+                                    continue;
+                                }
+                                if (!validatePublicKey(senderPublicKey)) {
+                                    console.warn(
+                                        "Invalid public key format for sender",
+                                        msg.sender._id
+                                    );
+                                    decryptedMsgs.push(msg);
+                                    continue;
+                                }
+                                if (
+                                    !(await validatePublicKeyForRsa(
+                                        senderPublicKey
+                                    ))
+                                ) {
+                                    console.warn(
+                                        "Unsupported public key algorithm for sender",
+                                        msg.sender._id
+                                    );
+                                    decryptedMsgs.push(msg);
+                                    continue;
+                                }
+
+                                const decryptedText = await decryptMessage(
+                                    {
+                                        encryptedText: msg.encryptedText,
+                                        iv: msg.iv,
+                                        signature: msg.signature,
+                                    },
+                                    senderPublicKey,
+                                    keyPair.privateKey
+                                );
+
+                                decryptedMsgs.push({
+                                    ...msg,
+                                    text: decryptedText,
+                                    isDecrypted: true,
+                                });
+                            } else {
+                                decryptedMsgs.push(msg);
+                            }
+                        } catch (err) {
+                            // Decryption failed
+                            decryptedMsgs.push({
+                                ...msg,
+                                text: "[Decryption failed]",
+                                isDecrypted: false,
+                            });
+                        }
+                    }
+                    msgs = decryptedMsgs;
+                }
+
+                if (!cancelled) {
+                    setMessages(msgs);
+                }
+            } catch (err) {
+                console.error(err);
+            } finally {
+                if (!cancelled) {
+                    setLoading(false);
+                    scrollToBottom();
+                }
+            }
+        };
+
+        init();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [conversation?._id, keyPair, fetchRecipientPublicKeys]);
 
     /* Join Conversation Room */
     useEffect(() => {
@@ -86,11 +229,19 @@ export default function ChatArea({ conversation, onBack }) {
         const handleErrorMessage = ({ error }) => {
             setError(error);
             setTimeout(() => setError(null), 4000);
+
+            // If server complains about recipient public key, refresh our cached keys
+            if (
+                typeof error === "string" &&
+                error.toLowerCase().includes("public key")
+            ) {
+                fetchRecipientPublicKeys();
+            }
         };
 
         socket.on("error_message", handleErrorMessage);
         return () => socket.off("error_message", handleErrorMessage);
-    }, [socket]);
+    }, [socket, fetchRecipientPublicKeys]);
 
     /* New Messages */
     useEffect(() => {
@@ -141,21 +292,127 @@ export default function ChatArea({ conversation, onBack }) {
     }, [messages]);
 
     /* Send Message */
-    const handleSend = useCallback(() => {
-        if (!input.trim() || !conversation) return;
+    const handleSend = useCallback(
+        async (textToSend = null, retryAttempt = 0) => {
+            const textInput = textToSend || input.trim();
+            if (!textInput || !conversation) return;
 
-        const text = input.trim();
-        setInput("");
+            if (!textToSend) {
+                setInput(""); // Clear input on first send only
+            }
 
-        socket.emit("send_message", {
-            conversationId: conversation._id,
-            text,
-        });
+            try {
+                // Validate encryption setup
+                if (!keyPair?.privateKey) {
+                    setEncryptionError(
+                        "⚠️ Encryption keys not loaded. Please refresh the page."
+                    );
+                    return;
+                }
 
-        socket.emit("typing_stop", {
-            conversationId: conversation._id,
-        });
-    }, [input, conversation, socket]);
+                // Get recipient's id (for 1-1 chat, or first recipient for group)
+                const recipientId = conversation.participants.find(
+                    (p) => p._id !== currentUser._id
+                )?._id;
+
+                if (!recipientId) {
+                    setEncryptionError(
+                        "❌ No recipient found in conversation."
+                    );
+                    return;
+                }
+
+                // Always try to fetch a fresh public key from the server right before sending
+                let recipientPublicKey = null;
+                try {
+                    let response;
+                    try {
+                        response = await api.get(
+                            `/api/v1/users/public-key/${recipientId}`
+                        );
+                    } catch (primaryErr) {
+                        response = await api.get(
+                            `/api/v1/users/${recipientId}/public-key`
+                        );
+                    }
+                    recipientPublicKey = response?.data?.data?.publicKey;
+
+                    // Cache it locally for UI use
+                    if (recipientPublicKey) {
+                        setRecipientPublicKeys((prev) => ({
+                            ...prev,
+                            [recipientId]: recipientPublicKey,
+                        }));
+                    }
+                } catch (err) {
+                    // Key fetch failed, will show error to user
+                }
+
+                if (!recipientPublicKey) {
+                    setEncryptionError(
+                        "Recipient hasn't set up encryption yet. Ask them to login first."
+                    );
+                    return;
+                }
+
+                if (!validatePublicKey(recipientPublicKey) || !(await validatePublicKeyForRsa(recipientPublicKey))) {
+                    setEncryptionError(
+                        "Recipient public key is invalid. Ask them to log in again to regenerate it."
+                    );
+                    return;
+                }
+
+                // Encrypt the message (now async with RSA)
+                const encryptedPayload = await encryptMessage(
+                    textInput,
+                    recipientPublicKey,
+                    keyPair.privateKey
+                );
+
+                // Use socket acknowledgement callback (if supported) to catch immediate server-side errors
+                socket.emit(
+                    "send_message",
+                    {
+                        conversationId: conversation._id,
+                        text: textInput, // Send plaintext for display (encrypted separately)
+                        ...encryptedPayload, // Include encryption payload
+                    },
+                    (ack) => {
+                        if (ack && ack.error) {
+                            const isKeyError =
+                                typeof ack.error === "string" &&
+                                (ack.error.toLowerCase().includes("public key") ||
+                                    ack.error.toLowerCase().includes("not configured") ||
+                                    ack.error.toLowerCase().includes("not found"));
+
+                            if (isKeyError && retryAttempt < 2) {
+                                fetchRecipientPublicKeys();
+                                setTimeout(() => {
+                                    handleSend(textInput, retryAttempt + 1);
+                                }, 1500);
+                            } else {
+                                setEncryptionError(ack.error);
+                                setSendRetry({ messageText: null, retryCount: 0 });
+                            }
+                        } else {
+                            setEncryptionError(null);
+                            setSendRetry({ messageText: null, retryCount: 0 });
+                        }
+                    }
+                );
+
+                socket.emit("typing_stop", {
+                    conversationId: conversation._id,
+                });
+            } catch (err) {
+                setEncryptionError(
+                    err.message || "Failed to send encrypted message"
+                );
+                setSendRetry({ messageText: null, retryCount: 0 });
+            }
+        },
+        [input, conversation, socket, keyPair, currentUser._id, fetchRecipientPublicKeys]
+    );
 
     /* Input Change (Typing) */
     const handleInputChange = useCallback((e) => {
@@ -188,9 +445,9 @@ export default function ChatArea({ conversation, onBack }) {
     return (
         <div className="flex-1 flex flex-col h-[100dvh]">
             {/* Error Notification */}
-            {error && (
+            {(error || encryptionError) && (
                 <div className="bg-red-500 text-white px-4 py-3 text-sm animate-slide-down">
-                    ⚠️ {error}
+                    ⚠️ {error || encryptionError}
                 </div>
             )}
 
@@ -324,3 +581,5 @@ export default function ChatArea({ conversation, onBack }) {
         </div>
     );
 }
+
+
