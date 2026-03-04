@@ -43,6 +43,7 @@ export const SocketProvider = ({ children }) => {
 
   useEffect(() => {
     if (!socketRef.current) return;
+    const socket = socketRef.current;
 
     const handleNewMessage = (msg) => {
       setMessages((prev) => [...prev, msg]);
@@ -54,12 +55,12 @@ export const SocketProvider = ({ children }) => {
       setOnlineUsers(onlineUserIds);
     };
 
-    socketRef.current.on("new_message", handleNewMessage);
-    socketRef.current.on("online_users", handleOnlineUsers);
+    socket.on("new_message", handleNewMessage);
+    socket.on("online_users", handleOnlineUsers);
 
     return () => {
-      socketRef.current.off("new_message", handleNewMessage);
-      socketRef.current.off("online_users", handleOnlineUsers);
+      socket?.off?.("new_message", handleNewMessage);
+      socket?.off?.("online_users", handleOnlineUsers);
     };
   }, [socketReady]);
 

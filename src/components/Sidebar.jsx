@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useSocket } from "../context/SocketContext.jsx";
 import api from "../api/axiosInstance.js";
@@ -7,8 +8,10 @@ import SearchBar from "../helpers/searchBar.jsx";
 export default function Sidebar({ onSelectConversation, selectedConversation }) {
     const [conversations, setConversations] = useState([]);
     const [loading, setLoading] = useState(true);
-    const { user: currentUser } = useAuth();
+    const [loggingOut, setLoggingOut] = useState(false);
+    const { user: currentUser, logout } = useAuth();
     const { socket, onlineUsers } = useSocket();
+    const navigate = useNavigate();
 
     useEffect(() => {
         const fetchConversations = async () => {
@@ -45,6 +48,17 @@ export default function Sidebar({ onSelectConversation, selectedConversation }) 
         onSelectConversation(conv);
     }, [onSelectConversation]);
 
+    const handleLogout = useCallback(async () => {
+        if (loggingOut) return;
+        setLoggingOut(true);
+        try {
+            await logout();
+            navigate("/login", { replace: true });
+        } finally {
+            setLoggingOut(false);
+        }
+    }, [loggingOut, logout, navigate]);
+
     const conversationData = useMemo(() => {
         return conversations.map((conv) => {
             const isActive =
@@ -74,14 +88,22 @@ export default function Sidebar({ onSelectConversation, selectedConversation }) 
     return (
         <div className="w-full sm:w-80 bg-white border-r border-gray-200 
                         flex flex-col h-[100dvh]">
-            {/* Header */}
             <div className="p-3 sm:p-4 border-b border-gray-200">
-                <h2 className="text-lg sm:text-xl font-semibold text-center">
-                    Chats
-                </h2>
+                <div className="flex items-center justify-between gap-3">
+                    <h2 className="text-lg sm:text-xl font-semibold">
+                        Chats
+                    </h2>
+                    <button
+                        type="button"
+                        onClick={handleLogout}
+                        disabled={loggingOut}
+                        className="px-3 py-1.5 text-xs sm:text-sm rounded-md bg-red-500 text-white hover:bg-red-600 disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                        {loggingOut ? "Logging out..." : "Logout"}
+                    </button>
+                </div>
             </div>
 
-            {/* Search */}
             <div className="px-3 sm:px-4 pt-2">
                 <SearchBar
                     onSelectConversation={onSelectConversation}
@@ -90,7 +112,6 @@ export default function Sidebar({ onSelectConversation, selectedConversation }) 
                 />
             </div>
 
-            {/* Conversations */}
             <div className="flex-1 mt-2 px-2 sm:px-3 space-y-1 overflow-y-auto">
                 {conversations.length === 0 && (
                     <div className="text-gray-500 text-center mt-6 text-sm">
@@ -112,7 +133,6 @@ export default function Sidebar({ onSelectConversation, selectedConversation }) 
                                         : "bg-gray-50 hover:bg-gray-100"
                                 }`}
                         >
-                            {/* Avatar */}
                             <div className="relative flex-shrink-0">
                                 <img
                                     src={
@@ -129,7 +149,6 @@ export default function Sidebar({ onSelectConversation, selectedConversation }) 
                                 )}
                             </div>
 
-                            {/* Text */}
                             <div className="flex-1 overflow-hidden">
                                 <div className="flex items-center justify-between">
                                     <span className="truncate font-semibold text-sm sm:text-base">
@@ -155,7 +174,6 @@ export default function Sidebar({ onSelectConversation, selectedConversation }) 
                                 )}
                             </div>
 
-                            {/* Time */}
                             {conv.lastMessage && (
                                 <span className="text-[10px] sm:text-xs text-gray-400 flex-shrink-0">
                                     {new Date(

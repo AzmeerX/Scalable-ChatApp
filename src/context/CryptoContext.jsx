@@ -1,5 +1,12 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { getKeyPair } from '../helpers/cryptoUtils.js';
+import api from "../api/axiosInstance.js";
+import {
+    generateKeyPair,
+    getKeyPair,
+    resolvePublicKeyForUpload,
+    storeKeyPair,
+    validatePublicKey,
+} from '../helpers/cryptoUtils.js';
 import { useAuth } from './AuthContext.jsx';
 
 const CryptoContext = createContext();
@@ -16,10 +23,52 @@ export const CryptoProvider = ({ children }) => {
             return;
         }
 
-        // Load keypair from localStorage on user login
-        const storedKeyPair = getKeyPair(user._id);
-        setKeyPair(storedKeyPair);
-        setLoading(false);
+        let cancelled = false;
+
+        const ensureKeyPair = async () => {
+            setLoading(true);
+            try {
+                let storedKeyPair = getKeyPair(user._id);
+
+                if (!storedKeyPair?.privateKey) {
+                    const generatedKeyPair = await generateKeyPair();
+                    storeKeyPair(user._id, generatedKeyPair);
+                    storedKeyPair = generatedKeyPair;
+                }
+
+                if (storedKeyPair?.publicKey) {
+                    try {
+                        const publicKeyForUpload = await resolvePublicKeyForUpload(
+                            storedKeyPair.publicKey,
+                            storedKeyPair.privateKey
+                        );
+                        if (validatePublicKey(publicKeyForUpload)) {
+                            await api.post('/api/v1/users/upload-public-key', {
+                                publicKey: publicKeyForUpload,
+                            });
+                        }
+                    } catch {}
+                }
+
+                if (!cancelled) {
+                    setKeyPair(storedKeyPair);
+                }
+            } catch {
+                if (!cancelled) {
+                    setKeyPair(null);
+                }
+            } finally {
+                if (!cancelled) {
+                    setLoading(false);
+                }
+            }
+        };
+
+        ensureKeyPair();
+
+        return () => {
+            cancelled = true;
+        };
     }, [user?._id]);
 
     return (

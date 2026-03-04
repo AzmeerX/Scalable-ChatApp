@@ -7,7 +7,6 @@ export default function ChatPage() {
 
     return (
         <div className="flex h-[100dvh] bg-gray-100 overflow-hidden">
-            {/* Sidebar */}
             <div
                 className={`w-full sm:w-80 ${
                     selectedConversation ? "hidden sm:block" : "block"
@@ -19,7 +18,6 @@ export default function ChatPage() {
                 />
             </div>
 
-            {/* Chat Area */}
             <div
                 className={`flex-1 ${
                     selectedConversation ? "block" : "hidden sm:block"

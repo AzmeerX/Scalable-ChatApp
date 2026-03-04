@@ -15,7 +15,7 @@ import {
 export default function ChatArea({ conversation, onBack }) {
     const { user: currentUser } = useAuth();
     const { socket } = useSocket();
-    const { keyPair } = useCrypto();
+    const { keyPair, loading: cryptoLoading } = useCrypto();
 
     const [messages, setMessages] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -24,7 +24,6 @@ export default function ChatArea({ conversation, onBack }) {
     const [error, setError] = useState(null);
     const [recipientPublicKeys, setRecipientPublicKeys] = useState({});
     const [encryptionError, setEncryptionError] = useState(null);
-    const [sendRetry, setSendRetry] = useState({ messageText: null, retryCount: 0 });
 
     const scrollRef = useRef(null);
     const typingTimeout = useRef(null);
@@ -36,7 +35,7 @@ export default function ChatArea({ conversation, onBack }) {
         }
     };
 
-    /* Fetch Recipient Public Keys */
+    
     const fetchRecipientPublicKeys = useCallback(async () => {
         if (!conversation?.participants) return;
 
@@ -50,7 +49,7 @@ export default function ChatArea({ conversation, onBack }) {
                             response = await api.get(
                                 `/api/v1/users/public-key/${participant._id}`
                             );
-                        } catch (primaryErr) {
+                        } catch {
                             response = await api.get(
                                 `/api/v1/users/${participant._id}/public-key`
                             );
@@ -61,20 +60,16 @@ export default function ChatArea({ conversation, onBack }) {
                             continue;
                         }
                         keys[participant._id] = fetchedKey;
-                    } catch (err) {
-                        // Skip if key fetch fails
-                    }
+                    } catch {}
                 }
             }
             setRecipientPublicKeys(keys);
             return keys;
-        } catch (err) {
-            // Error already handled in loop
-        }
+        } catch {}
         return null;
     }, [conversation?.participants, currentUser._id]);
 
-    /* Fetch Messages + Recipient Keys */
+    
     useEffect(() => {
         if (!conversation?._id) return;
 
@@ -83,10 +78,10 @@ export default function ChatArea({ conversation, onBack }) {
 
         const init = async () => {
             try {
-                // Fetch recipient public keys first (fresh)
+                
                 const keys = await fetchRecipientPublicKeys();
 
-                // Fetch messages
+                
                 const { data } = await api.get(
                     `/api/v1/messages/${conversation._id}`
                 );
@@ -95,10 +90,10 @@ export default function ChatArea({ conversation, onBack }) {
                     ? [...data.data].reverse()
                     : [];
 
-                // Get all unique senders to fetch their keys
+                
                 const allSenders = new Set(msgs.map(m => m.sender._id));
                 
-                // Ensure we have all senders' keys cached
+                
                 for (const senderId of allSenders) {
                     if (!keys?.[senderId] && !recipientPublicKeys[senderId]) {
                         try {
@@ -119,13 +114,11 @@ export default function ChatArea({ conversation, onBack }) {
                                     [senderId]: senderKey
                                 }));
                             }
-                        } catch (err) {
-                            // Failed to fetch sender key
-                        }
+                        } catch {}
                     }
                 }
 
-                // Decrypt messages if we have the private key
+                
                 if (
                     keyPair?.privateKey &&
                     validatePrivateKey(keyPair.privateKey)
@@ -133,7 +126,7 @@ export default function ChatArea({ conversation, onBack }) {
                     const decryptedMsgs = [];
                     for (const msg of msgs) {
                         try {
-                            // Check if message is encrypted
+                            
                             if (
                                 msg.encryptedText &&
                                 msg.iv &&
@@ -171,7 +164,9 @@ export default function ChatArea({ conversation, onBack }) {
                         } catch (err) {
                             decryptedMsgs.push({
                                 ...msg,
-                                text: "[Decryption failed]",
+                                text:
+                                    (typeof msg.text === "string" && msg.text.trim()) ||
+                                    "[Decryption failed]",
                                 isDecrypted: false,
                             });
                         }
@@ -182,9 +177,7 @@ export default function ChatArea({ conversation, onBack }) {
                 if (!cancelled) {
                     setMessages(msgs);
                 }
-            } catch (err) {
-                // Error handled
-            } finally {
+            } catch {} finally {
                 if (!cancelled) {
                     setLoading(false);
                     scrollToBottom();
@@ -199,13 +192,13 @@ export default function ChatArea({ conversation, onBack }) {
         };
     }, [conversation?._id, keyPair, fetchRecipientPublicKeys]);
 
-    /* Join Conversation Room */
+    
     useEffect(() => {
         if (!socket || !conversation?._id) return;
         socket.emit("join_conversation", [conversation._id]);
     }, [socket, conversation?._id]);
 
-    /* Typing Indicator */
+    
     useEffect(() => {
         if (!socket || !conversation?._id) return;
 
@@ -229,7 +222,7 @@ export default function ChatArea({ conversation, onBack }) {
         };
     }, [socket, conversation?._id, currentUser._id]);
 
-    /* Rate Limiting */
+    
     useEffect(() => {
         if (!socket) return;
 
@@ -237,7 +230,7 @@ export default function ChatArea({ conversation, onBack }) {
             setError(error);
             setTimeout(() => setError(null), 4000);
 
-            // If server complains about recipient public key, refresh our cached keys
+            
             if (
                 typeof error === "string" &&
                 error.toLowerCase().includes("public key")
@@ -250,7 +243,7 @@ export default function ChatArea({ conversation, onBack }) {
         return () => socket.off("error_message", handleErrorMessage);
     }, [socket, fetchRecipientPublicKeys]);
 
-    /* New Messages */
+    
     useEffect(() => {
         if (!socket || !conversation?._id) return;
 
@@ -265,7 +258,7 @@ export default function ChatArea({ conversation, onBack }) {
         return () => socket.off("new_message", handleNewMessage);
     }, [socket, conversation?._id]);
 
-    /* Delivery Status */
+    
     useEffect(() => {
         if (!socket || !conversation) return;
 
@@ -298,26 +291,33 @@ export default function ChatArea({ conversation, onBack }) {
         scrollToBottom();
     }, [messages]);
 
-    /* Send Message */
+    
     const handleSend = useCallback(
         async (textToSend = null, retryAttempt = 0) => {
             const textInput = textToSend || input.trim();
             if (!textInput || !conversation) return;
 
             if (!textToSend) {
-                setInput(""); // Clear input on first send only
+                setInput("");
             }
 
             try {
-                // Validate encryption setup
-                if (!keyPair?.privateKey) {
+                
+                if (cryptoLoading) {
                     setEncryptionError(
-                        "⚠️ Encryption keys not loaded. Please refresh the page."
+                        "Encryption setup is still in progress. Please wait a moment."
                     );
                     return;
                 }
 
-                // Get recipient's id (for 1-1 chat, or first recipient for group)
+                if (!keyPair?.privateKey) {
+                    setEncryptionError(
+                        "⚠️ Encryption keys not loaded. Please login again."
+                    );
+                    return;
+                }
+
+                
                 const recipientId = conversation.participants.find(
                     (p) => p._id !== currentUser._id
                 )?._id;
@@ -329,7 +329,7 @@ export default function ChatArea({ conversation, onBack }) {
                     return;
                 }
 
-                // Always try to fetch a fresh public key from the server right before sending
+                
                 let recipientPublicKey = null;
                 try {
                     let response;
@@ -337,23 +337,21 @@ export default function ChatArea({ conversation, onBack }) {
                         response = await api.get(
                             `/api/v1/users/public-key/${recipientId}`
                         );
-                    } catch (primaryErr) {
+                    } catch {
                         response = await api.get(
                             `/api/v1/users/${recipientId}/public-key`
                         );
                     }
                     recipientPublicKey = response?.data?.data?.publicKey;
 
-                    // Cache it locally for UI use
+                    
                     if (recipientPublicKey) {
                         setRecipientPublicKeys((prev) => ({
                             ...prev,
                             [recipientId]: recipientPublicKey,
                         }));
                     }
-                } catch (err) {
-                    // Key fetch failed, will show error to user
-                }
+                } catch {}
 
                 if (!recipientPublicKey) {
                     setEncryptionError(
@@ -369,31 +367,20 @@ export default function ChatArea({ conversation, onBack }) {
                     return;
                 }
 
-                // Encrypt the message (now async with RSA)
+                
                 const encryptedPayload = await encryptMessage(
                     textInput,
                     recipientPublicKey,
                     keyPair.privateKey
                 );
 
-                // Debug: Log signature being sent
-                if (process.env.NODE_ENV === 'development') {
-                    console.log("📤 Sending message with signature:", {
-                        hasSignature: !!encryptedPayload.signature,
-                        signatureLength: encryptedPayload.signature?.length,
-                        signaturePreview: encryptedPayload.signature?.substring(0, 50),
-                        encryptedTextLength: encryptedPayload.encryptedText?.length,
-                        ivLength: encryptedPayload.iv?.length,
-                    });
-                }
-
-                // Use socket acknowledgement callback (if supported) to catch immediate server-side errors
+                
                 socket.emit(
                     "send_message",
                     {
                         conversationId: conversation._id,
-                        text: textInput, // Send plaintext for display (encrypted separately)
-                        ...encryptedPayload, // Include encryption payload
+                        text: textInput,
+                        ...encryptedPayload,
                     },
                     (ack) => {
                         if (ack && ack.error) {
@@ -410,11 +397,9 @@ export default function ChatArea({ conversation, onBack }) {
                                 }, 1500);
                             } else {
                                 setEncryptionError(ack.error);
-                                setSendRetry({ messageText: null, retryCount: 0 });
                             }
                         } else {
                             setEncryptionError(null);
-                            setSendRetry({ messageText: null, retryCount: 0 });
                         }
                     }
                 );
@@ -426,13 +411,12 @@ export default function ChatArea({ conversation, onBack }) {
                 setEncryptionError(
                     err.message || "Failed to send encrypted message"
                 );
-                setSendRetry({ messageText: null, retryCount: 0 });
             }
         },
-        [input, conversation, socket, keyPair, currentUser._id, fetchRecipientPublicKeys]
+        [input, conversation, socket, keyPair, cryptoLoading, currentUser._id, fetchRecipientPublicKeys]
     );
 
-    /* Input Change (Typing) */
+    
     const handleInputChange = useCallback((e) => {
         setInput(e.target.value);
         if (!socket || !conversation?._id) return;
@@ -450,7 +434,7 @@ export default function ChatArea({ conversation, onBack }) {
             });
             typingTimeout.current = null;
         }, TYPING_TIMEOUT);
-    }, [socket, conversation?._id, TYPING_TIMEOUT]);
+    }, [socket, conversation?._id]);
 
     if (!conversation) {
         return (
@@ -462,14 +446,14 @@ export default function ChatArea({ conversation, onBack }) {
 
     return (
         <div className="flex-1 flex flex-col h-[100dvh]">
-            {/* Error Notification */}
+            
             {(error || encryptionError) && (
                 <div className="bg-red-500 text-white px-4 py-3 text-sm animate-slide-down">
                     ⚠️ {error || encryptionError}
                 </div>
             )}
 
-            {/* Header */}
+            
             <div className="relative p-4 border-b bg-white flex flex-col items-center gap-1">
                 {onBack && (
                     <button
@@ -499,7 +483,7 @@ export default function ChatArea({ conversation, onBack }) {
                 )}
             </div>
 
-            {/* Messages */}
+            
             <div
                 ref={scrollRef}
                 className="flex-1 p-4 overflow-y-auto bg-gray-50 space-y-2"
@@ -579,18 +563,20 @@ export default function ChatArea({ conversation, onBack }) {
                 )}
             </div>
 
-            {/* Input */}
+            
             <div className="p-4 border-t bg-white flex gap-2">
                 <input
                     type="text"
                     placeholder="Type a message..."
                     className="flex-1 border rounded-lg px-3 py-2 outline-none"
                     value={input}
+                    disabled={cryptoLoading}
                     onChange={handleInputChange}
                     onKeyDown={(e) => e.key === "Enter" && handleSend()}
                 />
                 <button
                     className="bg-blue-500 text-white px-4 py-2 rounded-lg"
+                    disabled={cryptoLoading}
                     onClick={handleSend}
                 >
                     Send
@@ -599,5 +585,6 @@ export default function ChatArea({ conversation, onBack }) {
         </div>
     );
 }
+
 
 

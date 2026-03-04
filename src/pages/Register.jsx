@@ -49,16 +49,11 @@ export default function Register() {
       });
 
       const userId = signupRes.data.data._id;
-
-      // Generate cryptographic keypair (one-time on signup)
       const keyPair = await generateKeyPair();
-      
-      // Store private key locally (NEVER sent to backend)
       storeKeyPair(userId, keyPair);
 
       await login({ username, email, password });
 
-      // Upload public key to backend (requires authenticated session)
       try {
         const publicKeyForUpload = await ensureBase64PemPublicKey(keyPair.publicKey);
         if (!validatePublicKey(publicKeyForUpload)) {
@@ -67,7 +62,6 @@ export default function Register() {
         await api.post("/api/v1/users/upload-public-key", {
           publicKey: publicKeyForUpload,
         });
-        console.log("Public key uploaded successfully");
       } catch (keyUploadErr) {
         console.warn("Failed to upload public key, will retry on next login:", keyUploadErr);
       }
