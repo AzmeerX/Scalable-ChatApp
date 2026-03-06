@@ -1,51 +1,48 @@
-<h1>Scalable ChatApp</h1>
-<br>
-<p>A <strong>real-time, scalable chat application</strong> built with <strong>Node.js, Socket.IO, Redis, and MongoDB</strong>. Designed for low-latency messaging and real-time user presence tracking.</p>
-<p><strong>Live Demo:</strong> <a href="https://scalable-chat-app-three.vercel.app" target="_blank">https://scalable-chat-app-three.vercel.app</a></p>
-<br>
+<h1>Real-Time Chat Application (Frontend)</h1>
+
+<p>
+Frontend client for a scalable real-time messaging system.  
+The application provides instant messaging, typing indicators, and live online presence updates powered by Socketio
+</p>
+
+<a class="button" href="https://scalable-chat-app-three.vercel.app" target="_blank">Live Demo</a>
+
+<h2>Features</h2>
+<ul>
+<li>Real-time messaging</li>
+<li>Typing indicators</li>
+<li>Online / offline user status</li>
+<li>Message timestamps</li>
+<li>Responsive chat interface</li>
+<li>Secure communication with encrypted messages</li>
+</ul>
+
 <h2>Tech Stack</h2>
-<br>
+
+<span class="badge">React</span>,
+<span class="badge">Socket.IO Client</span>,
+<span class="badge">JavaScript</span>,
+<span class="badge">CSS</span>,
+<span class="badge">Vercel Deployment</span>
+
+<h2>Backend</h2>
+
+<p>
+This frontend communicates with a scalable backend built using Node.js, Express, Redis, and MongoDB.
+</p>
+
+<h2>How It Works</h2>
+
 <ul>
-  <li><strong>Backend:</strong> Node.js, Express</li>
-  <li><strong>Real-time Communication:</strong> Socket.IO</li>
-  <li><strong>Database:</strong> MongoDB (Mongoose)</li>
-  <li><strong>Cache:</strong> Redis (online/offline presence)</li>
-  <li><strong>Frontend:</strong> React</li>
-  <li><strong>Deployment:</strong> Vercel (frontend), Render (backend)</li>
+<li>User logs in and establishes a Socketio connection</li>
+<li>Messages are transmitted in real time using Socket.IO</li>
+<li>Typing indicators update instantly across clients</li>
+<li>Online presence is tracked using Redis</li>
+<li>Messages are stored persistently in MongoDB</li>
 </ul>
 
-<h2>Key Features</h2>
-<ul>
-  <li>Real-time messaging between users</li>
-  <li>Typing Indicators</li>
-  <li>Timestamp for each msg</li>
-  <li>Online/offline presence tracking using Redis</li>
-  <li>Persistent message storage in MongoDB</li>
-  <li>Scalable architecture ready for multiple Socket.IO instances</li>
-</ul>
+<div>
+Built as a backend systems project to explore real-time communication and scalable architecture.
+</div>
 
-
-<h2>Architecture Overview</h2>
-<img src="/assets/Architecture-Diagram.png" alt="Architecture Diagram">
-<ul>
-  <li><strong>Redis for Presence:</strong> Fast, in-memory storage for ephemeral user status. Reduces database writes and latency.</li>
-  <li><strong>Socket.IO:</strong> Simplifies event handling, automatic reconnections, and room management.</li>
-  <li><strong>MongoDB:</strong> Reliable storage for messages while separating ephemeral presence state.</li>
-</ul>
-
-<h2>WorkFlow</h2>
-<ol>
-  <li>User connects → Socket.IO handshake</li>
-  <li>Redis updates online presence</li>
-  <li>Messages are broadcast via Socket.IO and stored in MongoDB</li>
-  <li>Redis broadcasts presence updates to all connected clients</li>
-  <li>Disconnections handled; presence rebuilds on reconnect</li>
-</ol>
-
-<h2>Design Decisions & Trade-offs</h2>
-<ul>
-  <li><strong>Redis for Presence:</strong> Chosen for speed and efficiency. Avoids hitting the main database for temporary state.</li>
-  <li><strong>Socket.IO over WebSockets:</strong> Easier to manage rooms, events, and reconnections.</li>
-  <li><strong>MongoDB for Persistence:</strong> Ensures message history is stored reliably, separating ephemeral vs permanent data.</li>
-</ul>
-  </section>
+</div>
