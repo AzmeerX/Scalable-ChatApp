@@ -48,10 +48,4 @@
   <li><strong>Socket.IO over WebSockets:</strong> Easier to manage rooms, events, and reconnections.</li>
   <li><strong>MongoDB for Persistence:</strong> Ensures message history is stored reliably, separating ephemeral vs permanent data.</li>
 </ul>
-
-<br>
-<br>
-<br>
-      <li>Horizontal scaling with Redis Pub/Sub for multiple server instances</li>
-    </ul>
   </section>
